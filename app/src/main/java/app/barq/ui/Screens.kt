@@ -356,6 +356,17 @@ private fun FinishedView(s: TransferState.Finished, onHome: () -> Unit, onMore: 
                 Spacer(Modifier.height(14.dp))
                 Text(stringResource(R.string.transfer_incomplete, s.incomplete), color = c.error)
             }
+            val p = s.snapshot.profileMs
+            if (p.isNotEmpty() && s.snapshot.streams > 0) {
+                // Stage times are summed across streams; divide by streams for wall-clock-ish seconds.
+                val n = s.snapshot.streams
+                fun sec(k: String) = "%.1f".format((p[k] ?: 0L) / 1000.0 / n)
+                val line = if (s.direction == Direction.SEND)
+                    stringResource(R.string.profile_send, sec("read"), sec("net"), n)
+                else stringResource(R.string.profile_receive, sec("net"), sec("write"), n)
+                Spacer(Modifier.height(12.dp))
+                Text(line, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, textAlign = TextAlign.Center)
+            }
             Spacer(Modifier.weight(1f))
             if (s.sessionOpen && onMore != null) {
                 Text(stringResource(R.string.session_open, s.peer), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)

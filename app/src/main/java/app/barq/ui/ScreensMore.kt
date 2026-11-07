@@ -231,6 +231,14 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                         SettingRow(stringResource(R.string.settings_5ghz), stringResource(R.string.settings_5ghz_hint)) {
                             BarqSwitch(s.prefer5GHz) { v -> settings.update { it.copy(prefer5GHz = v) } }
                         }
+                        HorizontalDivider(color = c.outline)
+                        SettingRow(stringResource(R.string.settings_streams), stringResource(R.string.settings_streams_hint)) {
+                            Segmented(options = listOf(4 to "4", 6 to "6", 8 to "8"), selected = s.streams) { v -> settings.update { it.copy(streams = v) } }
+                        }
+                        HorizontalDivider(color = c.outline)
+                        SettingRow(stringResource(R.string.settings_benchmark), stringResource(R.string.settings_benchmark_hint)) {
+                            BarqSwitch(s.benchmarkPlain) { v -> settings.update { it.copy(benchmarkPlain = v) } }
+                        }
                     }
                 }
             }

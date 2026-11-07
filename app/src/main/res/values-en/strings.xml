@@ -135,6 +135,12 @@
     <string name="pick_folder_summary">%1$d files · %2$s</string>
     <string name="pick_folders_hint">Pick a folder to send everything in it; the receiver keeps the same structure inside Download/Wamda</string>
     <string name="send_preparing">Preparing files…</string>
+    <string name="profile_send">Profile: disk read %1$s s · network + TLS %2$s s · %3$d streams</string>
+    <string name="profile_receive">Profile: network + TLS %1$s s · disk write %2$s s · %3$d streams</string>
+    <string name="settings_streams">Parallel streams</string>
+    <string name="settings_streams_hint">Requested by this phone when receiving. 6 suits most devices</string>
+    <string name="settings_benchmark">Benchmark mode without encryption</string>
+    <string name="settings_benchmark_hint">For comparison only: this phone receives without TLS. Turn it off after measuring.</string>
     <string name="pick_all">Select all</string>
     <string name="pick_none">Clear</string>
     <string name="pick_count">%1$d files</string>

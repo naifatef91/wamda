@@ -35,6 +35,10 @@ class Receiver(
     private val onPlanned: (TransferStats, peerName: String) -> Unit,
     private val onSessionDone: (ReceiverResult) -> Unit,
     private val onDropped: (Throwable) -> Unit = {},
+    /** Parallel data streams the sender is asked to open (4–8). */
+    private val streams: Int = Protocol.DEFAULT_STREAMS,
+    /** false only in benchmark mode; the QR payload tells the sender. */
+    private val encrypted: Boolean = true,
 ) {
     @Volatile private var stats: TransferStats? = null
     @Volatile private var sessionActive = false
@@ -42,7 +46,7 @@ class Receiver(
 
     /** Runs until the calling coroutine is cancelled. */
     suspend fun run(): Nothing = withContext(Dispatchers.IO) {
-        val server: ServerSocket = Tls.serverSocket()
+        val server: ServerSocket = if (encrypted) Tls.serverSocket() else ServerSocket()
         server.receiveBufferSize = Protocol.SOCKET_BUFFER
         server.reuseAddress = true
         server.bind(InetSocketAddress(port))
@@ -112,14 +116,15 @@ class Receiver(
         val missing = store.prepare(manifest)
         val skipped = manifest.files.map { it.id }.filter { it !in missing }
         val prefilled = missing.keys.associateWith { store.bytesAlready(it) }
+        val n = streams.coerceIn(1, Protocol.MAX_STREAMS)
         val s = TransferStats(manifest.files, skipped.toSet(), prefilled)
-        s.streams = Protocol.DEFAULT_STREAMS
+        s.streams = n
         stats = s
         onPlanned(s, hello.deviceName)
 
         FrameIO.writeJson(
             out, Protocol.Type.NEED,
-            wireJson.encodeToString(NeedResponse.serializer(), NeedResponse(true, Protocol.DEFAULT_STREAMS, deviceName, missing)),
+            wireJson.encodeToString(NeedResponse.serializer(), NeedResponse(true, n, deviceName, missing)),
         )
 
         // Sender sends DONE after closing its data sockets.
@@ -150,13 +155,18 @@ class Receiver(
         try {
             val buf = ByteArray(Protocol.CHUNK_SIZE.toInt())
             while (true) {
+                val t0 = System.nanoTime()
                 val h = FrameIO.readHeader(inp) ?: break
                 when (h.type) {
                     Protocol.Type.DATA -> {
                         if (h.length < 0 || h.length > Protocol.CHUNK_SIZE) throw ProtocolException("bad chunk length ${h.length}")
                         inp.readFully(buf, 0, h.length)
+                        val t1 = System.nanoTime()
                         store.write(h.fileId, h.offset, buf, h.length)
+                        val t2 = System.nanoTime()
                         stats?.add(h.fileId, h.length)
+                        stats?.addTime("net", t1 - t0)
+                        stats?.addTime("write", t2 - t1)
                     }
                     else -> throw ProtocolException("unexpected frame ${h.type} on data stream")
                 }

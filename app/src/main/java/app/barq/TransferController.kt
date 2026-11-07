@@ -106,7 +106,7 @@ object TransferController {
                 val qr = QrPayload(
                     ssid = group.ssid, pass = group.passphrase, ip = group.ownerIp,
                     port = Protocol.PORT, token = token, name = deviceName(app), freq = group.frequencyMhz,
-                    fp = identity.fingerprint,
+                    fp = identity.fingerprint, enc = !settings.state.value.benchmarkPlain,
                 )
                 receiveQr = qr; receiveBand = group.band
                 _state.value = TransferState.Listening(qr, group.band)
@@ -152,6 +152,8 @@ object TransferController {
                             job?.cancel(ReconnectTimeout(cause))
                         }
                     },
+                    streams = settings.state.value.streams,
+                    encrypted = qr.enc,
                 )
                 val ticker = launch {
                     while (isActive) {
@@ -241,11 +243,11 @@ object TransferController {
                         }
 
                         var stats: TransferStats? = null
-                        val sender = Sender(network, qr.ip, qr.port, qr.token, qr.fp, deviceName(app), items) { s, p ->
+                        val sender = Sender(network, qr.ip, qr.port, qr.token, qr.fp, deviceName(app), items, onPlanned = { s, p ->
                             stats = s; lastStats = s
                             if (startedAt == 0L) startedAt = System.currentTimeMillis()
                             if (p.isNotBlank()) peer = p
-                        }
+                        }, encrypted = qr.enc)
                         val ticker = launch {
                             while (isActive) {
                                 delay(500)
@@ -325,6 +327,10 @@ object TransferController {
 
     private fun record(context: Context, direction: Direction, peer: String, band: String, stats: TransferStats?, startedAt: Long, incomplete: Int) {
         val snap = stats?.snapshot() ?: return
+        android.util.Log.i(
+            TAG, "profile $direction peer=$peer band=$band streams=${snap.streams} bytes=${snap.bytesDone} " +
+                "elapsedMs=${snap.elapsedMs} avgMBps=${"%.1f".format(snap.avgBps / 1048576)} stagesMs=${snap.profileMs}",
+        )
         HistoryStore.get(context).add(
             TransferRecord(
                 id = java.util.UUID.randomUUID().toString(),

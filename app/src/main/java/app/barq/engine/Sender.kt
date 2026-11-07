@@ -43,6 +43,8 @@ class Sender(
     private val deviceName: String,
     private val items: List<SendItem>,
     private val onPlanned: (TransferStats, peerName: String) -> Unit,
+    /** false only in the benchmark mode the receiver advertised in its QR payload. */
+    private val encrypted: Boolean = true,
 ) {
     private val byId = items.associateBy { it.entry.id }
 
@@ -107,12 +109,17 @@ class Sender(
                     val offset = job.index * Protocol.CHUNK_SIZE
                     val len = chunkLength(size, job.index)
                     val file = open.getOrPut(job.fileId) { item.open() }
+                    val t0 = System.nanoTime()
                     readFully(file.channel, buf, offset, len)
+                    val t1 = System.nanoTime()
 
                     val last = job.index == Protocol.chunkCount(size) - 1
                     FrameIO.writeHeader(out, Protocol.Type.DATA, if (last) Protocol.Flag.LAST_CHUNK else 0, job.fileId, offset, len)
                     out.write(buf, 0, len)
+                    val t2 = System.nanoTime()
                     stats.add(job.fileId, len)
+                    stats.addTime("read", t1 - t0)
+                    stats.addTime("net", t2 - t1)
                     sentBytes.addAndGet(len.toLong())
                 }
                 // SSLSocket has no half-close; close() flushes and sends close_notify.
@@ -147,6 +154,7 @@ class Sender(
         socket.receiveBufferSize = Protocol.SOCKET_BUFFER
         socket.connect(InetSocketAddress(host, port), 15_000)
         socket.soTimeout = 60_000
+        if (!encrypted) return socket
         if (fingerprint.isBlank()) throw ProtocolException("QR code has no certificate fingerprint; refusing unencrypted transfer")
         return Tls.wrapClient(socket, host, port, fingerprint)
     }

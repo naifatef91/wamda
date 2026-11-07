@@ -20,6 +20,8 @@ data class Snapshot(
     val elapsedMs: Long,
     val streams: Int,
     val files: List<FileProgress>,
+    /** Milliseconds spent per stage, summed across streams: "read" (disk), "net" (socket + TLS), "write" (disk). */
+    val profileMs: Map<String, Long> = emptyMap(),
 ) {
     val fraction: Float get() = if (bytesTotal == 0L) 1f else (bytesDone.toDouble() / bytesTotal).toFloat().coerceIn(0f, 1f)
 }
@@ -51,6 +53,13 @@ class TransferStats(entries: List<FileEntry>, skippedIds: Set<Int> = emptySet(),
         total.addAndGet(n.toLong())
     }
 
+    private val stages = ConcurrentHashMap<String, AtomicLong>()
+
+    /** Accumulates time spent in a stage (nanoseconds), from any stream. */
+    fun addTime(stage: String, nanos: Long) {
+        if (nanos > 0) stages.getOrPut(stage) { AtomicLong() }.addAndGet(nanos)
+    }
+
     @Synchronized
     fun snapshot(): Snapshot {
         val now = System.nanoTime()
@@ -69,6 +78,7 @@ class TransferStats(entries: List<FileEntry>, skippedIds: Set<Int> = emptySet(),
         val files = entries.values.sortedBy { it.id }.map { e ->
             FileProgress(e.id, e.name, e.size, perFile[e.id]?.get()?.coerceAtMost(e.size) ?: 0L, e.id in skipped)
         }
-        return Snapshot(bytes, bytesTotal, ema, avg, eta, (elapsed * 1000).toLong(), streams, files)
+        val profile = stages.entries.associate { it.key to it.value.get() / 1_000_000 }
+        return Snapshot(bytes, bytesTotal, ema, avg, eta, (elapsed * 1000).toLong(), streams, files, profile)
     }
 }

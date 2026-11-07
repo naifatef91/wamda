@@ -72,6 +72,8 @@ data class QrPayload(
     val freq: Int = 0,
     /** Base64url SHA-256 of the receiver's TLS certificate; the sender pins it. */
     val fp: String = "",
+    /** false = benchmark mode without TLS (receiver's developer setting); never the default. */
+    val enc: Boolean = true,
 ) {
     fun encode(): String = "barq:" + wireJson.encodeToString(serializer(), this)
 
