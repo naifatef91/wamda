@@ -20,7 +20,7 @@ object Protocol {
     const val STREAM_BUFFER = 1 * 1024 * 1024
     const val DEFAULT_STREAMS = 6
     const val MAX_STREAMS = 8
-    const val MAX_CONTROL_FRAME = 16 * 1024 * 1024
+    const val MAX_CONTROL_FRAME = 4 * 1024 * 1024
 
     object Type {
         const val HELLO = 1
@@ -94,4 +94,4 @@ object FrameIO {
     }
 }
 
-class ProtocolException(message: String) : Exception(message)
+open class ProtocolException(message: String) : Exception(message)

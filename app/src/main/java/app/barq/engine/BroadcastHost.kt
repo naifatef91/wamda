@@ -32,8 +32,10 @@ class BroadcastHost(
     private val onPlanned: (session: String, peer: String, stats: TransferStats) -> Unit,
     private val onDone: (session: String, result: SenderResult) -> Unit,
     private val onFailed: (session: String, cause: Throwable) -> Unit,
+    /** Local address to listen on (the P2P group owner IP); null binds every interface. */
+    private val bindAddress: String? = null,
 ) {
-    private class Peer(val name: String, val data: Channel<Link> = Channel(Channel.UNLIMITED))
+    private class Peer(val name: String, val data: Channel<Link> = Channel(Protocol.MAX_STREAMS))
 
     private val peers = ConcurrentHashMap<String, Peer>()
 
@@ -42,7 +44,7 @@ class BroadcastHost(
         val server: ServerSocket = Tls.serverSocket()
         server.receiveBufferSize = Protocol.SOCKET_BUFFER
         server.reuseAddress = true
-        server.bind(InetSocketAddress(port))
+        server.bind(if (bindAddress != null) InetSocketAddress(java.net.InetAddress.getByName(bindAddress), port) else InetSocketAddress(port))
         try {
             coroutineScope {
                 while (true) {
@@ -73,15 +75,21 @@ class BroadcastHost(
             runCatching { socket.close() }
             return
         }
-        if (hello.magic != Protocol.MAGIC || hello.token != token || hello.session.isBlank()) {
+        if (hello.magic != Protocol.MAGIC || !java.security.MessageDigest.isEqual(hello.token.toByteArray(), token.toByteArray()) ||
+            hello.session.isBlank() || hello.session.length > 64
+        ) {
             runCatching { FrameIO.writeJson(DataOutputStream(socket.getOutputStream()), Protocol.Type.ERROR, "bad token") }
             runCatching { socket.close() }
             return
         }
         when (hello.role) {
             Protocol.Role.CONTROL -> {
-                val peer = Peer(hello.deviceName)
-                peers[hello.session] = peer
+                val peer = Peer(hello.deviceName.take(64))
+                if (peers.putIfAbsent(hello.session, peer) != null || peers.size > MAX_PEERS) {
+                    peers.remove(hello.session, peer)
+                    runCatching { socket.close() }
+                    return
+                }
                 onJoined(hello.session, hello.deviceName)
                 try {
                     val sender = Sender(HostedTransport(SocketLink(socket), peer.data), token, deviceName, items, onPlanned = { stats, _ ->
@@ -102,9 +110,14 @@ class BroadcastHost(
             Protocol.Role.DATA -> {
                 val peer = peers[hello.session]
                 if (peer == null) { runCatching { socket.close() }; return }
-                peer.data.send(SocketLink(socket))
+                // Bounded per session: a peer that opens more data links than it was offered is cut off.
+                if (!peer.data.trySend(SocketLink(socket)).isSuccess) runCatching { socket.close() }
             }
             else -> runCatching { socket.close() }
         }
+    }
+
+    private companion object {
+        const val MAX_PEERS = 16
     }
 }

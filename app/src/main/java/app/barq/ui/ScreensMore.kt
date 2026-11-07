@@ -11,21 +11,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -73,13 +73,24 @@ fun HistoryScreen(onBack: () -> Unit, onReceive: () -> Unit) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val records by HistoryStore.get(ctx).records.collectAsStateWithLifecycle()
+    var confirmClear by remember { mutableStateOf(false) }
     BackHandler { onBack() }
 
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text(stringResource(R.string.history_clear)) },
+            text = { Text(stringResource(R.string.history_clear_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { HistoryStore.get(ctx).clear(); confirmClear = false }) { Text(stringResource(R.string.history_clear), color = c.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-            Text(stringResource(R.string.history_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            if (records.isNotEmpty()) TextButton(onClick = { HistoryStore.get(ctx).clear() }) { Text(stringResource(R.string.history_clear), color = c.error) }
+        TopBar(stringResource(R.string.history_title), onBack = onBack) {
+            if (records.isNotEmpty()) TextButton(onClick = { confirmClear = true }) { Text(stringResource(R.string.history_clear), color = c.error) }
         }
 
         if (records.isEmpty()) {
@@ -135,7 +146,7 @@ fun HistoryRow(r: TransferRecord, onResume: (() -> Unit)? = null) {
                 fg = when { !r.complete -> x.warn; incoming -> x.ok; else -> c.primary },
             )
             Column(Modifier.weight(1f)) {
-                Text(stringResource(if (incoming) R.string.history_from else R.string.history_to, r.peer), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(stringResource(if (incoming) R.string.history_from else R.string.history_to, r.peer), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     if (r.complete) stringResource(R.string.history_line, r.fileCount, formatBytes(r.bytes), timeLabel(r.startedAt))
                     else stringResource(R.string.history_incomplete, r.incomplete, formatBytes(r.bytes)),
@@ -144,11 +155,7 @@ fun HistoryRow(r: TransferRecord, onResume: (() -> Unit)? = null) {
                 )
             }
             if (!r.complete && incoming && onResume != null) {
-                Text(
-                    stringResource(R.string.history_resume),
-                    style = MaterialTheme.typography.labelMedium, color = c.onSecondary,
-                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(x.warn).clickable(onClick = onResume).padding(horizontal = 12.dp, vertical = 8.dp),
-                )
+                BarqButton(stringResource(R.string.history_resume), onResume, kind = ButtonKind.Tonal, height = 44, fillWidth = false)
             } else {
                 Text(formatSpeed(r.avgBps), style = MaterialTheme.typography.labelMedium, color = if (incoming) x.ok else c.primary)
             }
@@ -192,10 +199,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
-        }
+        TopBar(stringResource(R.string.settings_title), onBack = onBack)
 
         LazyColumn(Modifier.weight(1f).padding(horizontal = 24.dp)) {
             item { SectionHeader(stringResource(R.string.settings_device)) }
@@ -220,15 +224,15 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             item {
                 BarqCard(Modifier.fillMaxWidth()) {
                     Column {
-                        SettingRow(stringResource(R.string.settings_auto_accept), stringResource(R.string.settings_auto_accept_hint)) {
+                        SettingRow(stringResource(R.string.settings_auto_accept), stringResource(R.string.settings_auto_accept_hint), onClick = { settings.update { it.copy(autoAcceptTrusted = !it.autoAcceptTrusted) } }) {
                             BarqSwitch(s.autoAcceptTrusted) { v -> settings.update { it.copy(autoAcceptTrusted = v) } }
                         }
                         HorizontalDivider(color = c.outline)
-                        SettingRow(stringResource(R.string.settings_skip), stringResource(R.string.settings_skip_hint)) {
+                        SettingRow(stringResource(R.string.settings_skip), stringResource(R.string.settings_skip_hint), onClick = { settings.update { it.copy(skipExisting = !it.skipExisting) } }) {
                             BarqSwitch(s.skipExisting) { v -> settings.update { it.copy(skipExisting = v) } }
                         }
                         HorizontalDivider(color = c.outline)
-                        SettingRow(stringResource(R.string.settings_5ghz), stringResource(R.string.settings_5ghz_hint)) {
+                        SettingRow(stringResource(R.string.settings_5ghz), stringResource(R.string.settings_5ghz_hint), onClick = { settings.update { it.copy(prefer5GHz = !it.prefer5GHz) } }) {
                             BarqSwitch(s.prefer5GHz) { v -> settings.update { it.copy(prefer5GHz = v) } }
                         }
                         HorizontalDivider(color = c.outline)
@@ -236,7 +240,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                             Segmented(options = listOf(4 to "4", 6 to "6", 8 to "8"), selected = s.streams) { v -> settings.update { it.copy(streams = v) } }
                         }
                         HorizontalDivider(color = c.outline)
-                        SettingRow(stringResource(R.string.settings_benchmark), stringResource(R.string.settings_benchmark_hint)) {
+                        SettingRow(stringResource(R.string.settings_benchmark), stringResource(R.string.settings_benchmark_hint), onClick = { settings.update { it.copy(benchmarkPlain = !it.benchmarkPlain) } }) {
                             BarqSwitch(s.benchmarkPlain) { v -> settings.update { it.copy(benchmarkPlain = v) } }
                         }
                     }
@@ -347,21 +351,14 @@ private fun SettingRow(title: String, subtitle: String?, mono: Boolean = false, 
     val base = if (onClick != null) Modifier.fillMaxWidth().clickable(onClick = onClick) else Modifier.fillMaxWidth()
     Row(base.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, fontFamily = if (mono) FontFamily.Monospace else null)
         }
         trailing()
     }
 }
 
-@Composable
-private fun BarqSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
-    val c = MaterialTheme.colorScheme
-    Switch(
-        checked = checked, onCheckedChange = onChange,
-        colors = SwitchDefaults.colors(checkedTrackColor = c.primary, checkedThumbColor = c.onPrimary, uncheckedTrackColor = c.outline, uncheckedThumbColor = c.surface, uncheckedBorderColor = c.outline),
-    )
-}
+// BarqSwitch lives in Components.kt.
 
 @Composable
 private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
@@ -370,7 +367,10 @@ private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect:
         options.forEach { (value, label) ->
             val on = value == selected
             Box(
-                Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) c.surface else c.background).clickable { onSelect(value) }.padding(horizontal = 10.dp, vertical = 6.dp),
+                Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(8.dp)).background(if (on) c.surface else c.background)
+                    .selectable(selected = on, role = Role.RadioButton) { onSelect(value) }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center,
             ) { Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) c.onSurface else c.onSurfaceVariant) }
         }
     }

@@ -25,13 +25,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,17 +69,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 // The home screen lives in Home.kt.
 
 // ---------- Shared scaffold ----------
-
-@Composable
-private fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
-            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
+// TopBar lives in Components.kt.
 
 @Composable
 private fun Screen(content: @Composable ColumnScope.() -> Unit) {
@@ -91,8 +78,12 @@ private fun Screen(content: @Composable ColumnScope.() -> Unit) {
 
 // ---------- Receive ----------
 
+/**
+ * [onHome] resets the controller and returns home; [onMinimize] returns home while a
+ * transfer keeps running in the background (Home then shows the live strip).
+ */
 @Composable
-fun ReceiveScreen(onHome: () -> Unit) {
+fun ReceiveScreen(onHome: () -> Unit, onMinimize: () -> Unit = onHome) {
     val ctx = LocalContext.current
     val state by TransferController.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
@@ -101,7 +92,7 @@ fun ReceiveScreen(onHome: () -> Unit) {
             TransferController.startReceiving(ctx)
         }
     }
-    BackHandler { onHome() }
+    BackHandler { if (state is TransferState.Running) onMinimize() else onHome() }
 
     // Broadcast mode: scan the SENDER's code and join its network instead of hosting our own.
     var notHost by remember { mutableStateOf(false) }
@@ -129,28 +120,15 @@ fun ReceiveScreen(onHome: () -> Unit) {
         is TransferState.Listening -> ReceiveQr(s.qr, s.band, onHome, dropped = s.dropped, onScanSender = onScanSender, notHost = notHost)
         is TransferState.AwaitingAccept -> {
             ReceiveQr(null, "", onHome)
-            val m = s.manifest
-            var trust by remember { mutableStateOf(false) }
-            AlertDialog(
-                onDismissRequest = { TransferController.accept(ctx, false) },
-                title = { Text(stringResource(R.string.incoming_title)) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(stringResource(R.string.incoming_body, m.senderName, m.files.size, formatBytes(m.totalBytes)))
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            androidx.compose.material3.Checkbox(checked = trust, onCheckedChange = { trust = it })
-                            Text(stringResource(R.string.incoming_trust), style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                },
-                confirmButton = { TextButton(onClick = { TransferController.accept(ctx, true, trust) }) { Text(stringResource(R.string.accept)) } },
-                dismissButton = { TextButton(onClick = { TransferController.accept(ctx, false) }) { Text(stringResource(R.string.decline)) } },
-            )
+            IncomingDialog(s.manifest) { accept, trust -> TransferController.accept(ctx, accept, trust) }
         }
-        is TransferState.Running -> TransferView(s.direction, s.peer, s.band, s.snapshot, onHome)
+        is TransferState.Running -> TransferView(s.direction, s.peer, s.band, s.snapshot, onHome, onMinimize = onMinimize, encrypted = s.encrypted)
         is TransferState.Finished -> FinishedView(s, onHome, onMore = { TransferController.continueReceiving() })
         is TransferState.Failed -> FailedView(s.message, s.retryable, onHome)
-        is TransferState.Broadcasting -> Centered { Spinner("") }
+        is TransferState.Broadcasting -> Screen {
+            TopBar(stringResource(R.string.home_receive), onBack = onHome)
+            Centered { Spinner(stringResource(R.string.send_preparing)) }
+        }
     }
 }
 
@@ -183,19 +161,11 @@ private fun ReceiveQr(qr: QrPayload?, band: String, onHome: () -> Unit, dropped:
                         Text(stringResource(R.string.receive_network_note), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                     }
                 }
-                if (band == "2.4GHz") {
-                    Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(x.warnSoft).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(BarqIcons.Warning, contentDescription = null, tint = x.warn, modifier = Modifier.size(20.dp))
-                        Text(stringResource(R.string.receive_band_warn), style = MaterialTheme.typography.bodySmall, color = x.warn)
-                    }
-                }
+                if (band == "2.4GHz") InfoBanner(stringResource(R.string.receive_band_warn), ChipTone.Warn)
             }
             Spacer(Modifier.weight(1f))
             if (dropped) {
-                Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(x.warnSoft).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = x.warn)
-                    Text(stringResource(R.string.receive_dropped), style = MaterialTheme.typography.bodySmall, color = x.warn)
-                }
+                InfoBanner(stringResource(R.string.receive_dropped), ChipTone.Warn)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.size(10.dp).clip(CircleShape).background(c.primary))
@@ -214,13 +184,15 @@ private fun ReceiveQr(qr: QrPayload?, band: String, onHome: () -> Unit, dropped:
 // ---------- Send ----------
 
 @Composable
-fun SendScreen(onHome: () -> Unit) {
+fun SendScreen(onHome: () -> Unit, onMinimize: () -> Unit = onHome) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val state by TransferController.state.collectAsStateWithLifecycle()
     var files by remember { mutableStateOf<List<PickedFile>>(emptyList()) }
     var qr by remember { mutableStateOf<QrPayload?>(TransferController.openSendSession) }
     var scanError by remember { mutableStateOf(false) }
+    // Screen-level back: the picker / radar / broadcast screens install their own handlers on top of this one.
+    BackHandler { if (state is TransferState.Running) onMinimize() else onHome() }
 
     // Files handed over by the system share sheet.
     val intake by TransferController.shareIntake.collectAsStateWithLifecycle()
@@ -253,6 +225,7 @@ fun SendScreen(onHome: () -> Unit) {
             onBack = { files = emptyList() },
             onScanQr = launchScan,
             onPicked = { qr = it },
+            error = if (scanError) stringResource(R.string.send_bad_qr) else null,
             onBroadcast = { TransferService.start(ctx); TransferController.startBroadcast(ctx, files) },
             onPickedAware = { id -> TransferService.start(ctx); TransferController.startSendingAware(ctx, id, files) },
         )
@@ -270,17 +243,21 @@ fun SendScreen(onHome: () -> Unit) {
                 )
             }
         }
-        is TransferState.Running -> TransferView(s.direction, s.peer, s.band, s.snapshot, onHome)
+        is TransferState.Running -> TransferView(s.direction, s.peer, s.band, s.snapshot, onHome, onMinimize = onMinimize, encrypted = s.encrypted)
         is TransferState.Finished -> FinishedView(s, onHome, onMore = { TransferController.prepareNextSend(); files = emptyList() })
         is TransferState.Failed -> FailedView(s.message, s.retryable, onHome)
-        else -> Centered { Spinner("") }
+        else -> Screen {
+            TopBar(stringResource(R.string.home_send), onBack = onHome)
+            Centered { Spinner(stringResource(R.string.send_preparing)) }
+        }
     }
 }
 
 // ---------- Transfer ----------
 
+/** [onCancel] stops the transfer; [onMinimize] (top-bar back) leaves it running and returns home. */
 @Composable
-fun TransferView(direction: Direction, peer: String, band: String, snap: Snapshot, onCancel: () -> Unit) {
+fun TransferView(direction: Direction, peer: String, band: String, snap: Snapshot, onCancel: () -> Unit, onMinimize: () -> Unit = onCancel, encrypted: Boolean = true) {
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
     val history = remember { mutableStateListOf<Float>() }
@@ -292,15 +269,13 @@ fun TransferView(direction: Direction, peer: String, band: String, snap: Snapsho
     val speedText = if (mb >= 10) "%.0f".format(mb) else "%.1f".format(mb)
 
     Screen {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(c.surface).border(1.dp, c.outline, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(BarqIcons.Phone, contentDescription = null, tint = c.onSurfaceVariant, modifier = Modifier.size(20.dp))
-            }
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(if (direction == Direction.SEND) R.string.transfer_sending_to else R.string.transfer_receiving_from), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
-                Text(peer, style = MaterialTheme.typography.titleLarge)
-            }
-            BarqChip(stringResource(R.string.chip_encrypted), ChipTone.Ok, leading = BarqIcons.Lock)
+        // Back here minimizes: the transfer keeps running and Home shows the live strip.
+        TopBar(
+            title = peer,
+            subtitle = stringResource(if (direction == Direction.SEND) R.string.transfer_sending_to else R.string.transfer_receiving_from),
+            onBack = onMinimize,
+        ) {
+            if (encrypted && band != "USB") BarqChip(stringResource(R.string.chip_encrypted), ChipTone.Ok, leading = BarqIcons.Lock)
         }
 
         Column(Modifier.padding(horizontal = 24.dp).padding(top = 12.dp)) {
@@ -321,7 +296,7 @@ fun TransferView(direction: Direction, peer: String, band: String, snap: Snapsho
                 BarqChip(band, if (band == "2.4GHz") ChipTone.Warn else ChipTone.Ok)
                 BarqChip(stringResource(R.string.transfer_streams, snap.streams), ChipTone.Accent)
                 if (snap.bytesByKind.size > 1) BarqChip(stringResource(R.string.cable_multipath), ChipTone.Ok)
-                else if (band != "USB") BarqChip("AES-256-GCM", ChipTone.Neutral)
+                else if (encrypted && band != "USB") BarqChip("AES-256-GCM", ChipTone.Neutral)
             }
         }
 
@@ -360,6 +335,7 @@ fun FinishedView(s: TransferState.Finished, onHome: () -> Unit, onMore: (() -> U
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
     val skipped = s.snapshot.files.count { it.skipped }
+    BackHandler { onHome() }
     Screen {
         Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(64.dp))
@@ -400,9 +376,9 @@ fun FinishedView(s: TransferState.Finished, onHome: () -> Unit, onMore: (() -> U
                 Spacer(Modifier.height(10.dp))
                 BarqButton(stringResource(if (s.direction == Direction.SEND) R.string.send_more else R.string.receive_more), onMore)
                 Spacer(Modifier.height(10.dp))
-                BarqButton(stringResource(R.string.back_home), onHome, kind = ButtonKind.Outlined, height = 52)
+                BarqButton(stringResource(R.string.back_to_home), onHome, kind = ButtonKind.Outlined, height = 52)
             } else {
-                BarqButton(stringResource(R.string.back_home), onHome)
+                BarqButton(stringResource(R.string.back_to_home), onHome)
             }
         }
     }
@@ -422,6 +398,7 @@ private fun Stat(value: String, label: String, modifier: Modifier = Modifier, ti
 fun FailedView(message: String, retryable: Boolean, onHome: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val ctx = LocalContext.current
+    BackHandler { onHome() }
     Screen {
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(64.dp))
@@ -440,9 +417,9 @@ fun FailedView(message: String, retryable: Boolean, onHome: () -> Unit) {
             if (retryable) {
                 BarqButton(stringResource(R.string.retry), { TransferController.retry(ctx) })
                 Spacer(Modifier.height(10.dp))
-                BarqButton(stringResource(R.string.back_home), onHome, kind = ButtonKind.Outlined, height = 52)
+                BarqButton(stringResource(R.string.back_to_home), onHome, kind = ButtonKind.Outlined, height = 52)
             } else {
-                BarqButton(stringResource(R.string.back_home), onHome)
+                BarqButton(stringResource(R.string.back_to_home), onHome)
             }
         }
     }

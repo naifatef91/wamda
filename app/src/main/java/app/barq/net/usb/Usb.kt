@@ -144,6 +144,7 @@ class Mux(private val pipe: UsbPipe, private val kind: String = "usb") : Closeab
                     val len = ((header[1].toInt() and 0xFF) shl 16) or ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
                     val s = streams[id] ?: StreamIn().also { streams[id] = it; incoming.trySend(link(id, it)) }
                     if (len == 0) { s.eof(); continue }
+                    if (len > MAX_FRAME) throw java.io.IOException("usb frame too large: $len")
                     val payload = ByteArray(len)
                     readFully(payload, len)
                     s.push(payload)
@@ -219,14 +220,15 @@ class Mux(private val pipe: UsbPipe, private val kind: String = "usb") : Closeab
 
     /** Blocking byte source fed by the reader coroutine. */
     private class StreamIn : InputStream() {
-        private val queue = LinkedBlockingQueue<ByteArray>()
+        /** Bounded: a peer that floods one stream blocks the shared pipe instead of growing the heap. */
+        private val queue = LinkedBlockingQueue<ByteArray>(256)
         private var current: ByteArray? = null
         private var pos = 0
         @Volatile private var done = false
         private val EOF = ByteArray(0)
 
         fun push(b: ByteArray) { if (!done) queue.put(b) }
-        fun eof() { if (!done) { done = true; queue.put(EOF) } }
+        fun eof() { if (!done) { done = true; if (!queue.offer(EOF)) { queue.clear(); queue.offer(EOF) } } }
 
         private fun fill(): Boolean {
             val c = current

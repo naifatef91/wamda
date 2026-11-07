@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,6 +41,7 @@ fun PcConnectionCard(s: app.barq.web.PcState.Ready) {
                 Text(
                     if (connected) stringResource(R.string.pc_connected, s.stats.lastClientAddress ?: "") else stringResource(R.string.pc_waiting),
                     style = MaterialTheme.typography.titleMedium, color = if (connected) x.ok else c.onSurface,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
                     stringResource(if (connected) R.string.pc_connected_hint else R.string.pc_waiting_hint),
@@ -120,12 +120,12 @@ fun PcOptions(band: String) {
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            BarqChip(band, if (band == "2.4GHz") ChipTone.Neutral else ChipTone.Ok, leading = BarqIcons.Wifi)
+            BarqChip(band, if (band == "2.4GHz") ChipTone.Warn else ChipTone.Ok, leading = BarqIcons.Wifi)
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.pc_use_5ghz), style = MaterialTheme.typography.bodyMedium)
                 Text(stringResource(R.string.pc_use_5ghz_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
             }
-            Switch(checked = prefs.pc5GHz, onCheckedChange = { on -> settings.update { it.copy(pc5GHz = on) }; PcSession.restart(ctx) })
+            BarqSwitch(prefs.pc5GHz) { on -> settings.update { it.copy(pc5GHz = on) }; PcSession.restart(ctx) }
         }
         TextButton(onClick = { editing = true }) { Text(stringResource(R.string.pc_change_password)) }
     }

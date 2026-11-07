@@ -121,8 +121,13 @@ class Sender(
             val need = wireJson.decodeFromString(NeedResponse.serializer(), FrameIO.readJson(inp, Protocol.Type.NEED))
             if (!need.accepted) throw ProtocolException(need.reason ?: "declined by receiver")
 
-            val skipped = manifest.files.map { it.id }.filter { it !in need.missing }
-            val prefilled = need.missing.mapValues { (id, chunks) ->
+            // Never trust the receiver's indexes: unknown ids, out-of-range or repeated chunks are dropped.
+            val missing = need.missing.filterKeys { it in byId }.mapValues { (id, chunks) ->
+                val n = Protocol.chunkCount(byId.getValue(id).entry.size)
+                chunks.filter { it in 0 until n }.distinct()
+            }
+            val skipped = manifest.files.map { it.id }.filter { it !in missing }
+            val prefilled = missing.mapValues { (id, chunks) ->
                 val size = byId.getValue(id).entry.size
                 size - chunks.sumOf { idx -> chunkLength(size, idx).toLong() }
             }
@@ -133,7 +138,7 @@ class Sender(
 
             val queue = Channel<ChunkJob>(Channel.UNLIMITED)
             for (entry in manifest.files) {
-                val chunks = need.missing[entry.id] ?: continue
+                val chunks = missing[entry.id] ?: continue
                 for (idx in chunks.sorted()) queue.send(ChunkJob(entry.id, idx))
             }
             queue.close()

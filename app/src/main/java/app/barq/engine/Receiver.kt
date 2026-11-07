@@ -31,7 +31,8 @@ class Receiver(
     private val token: String,
     private val deviceName: String,
     private val store: ReceiveStore,
-    private val onIncoming: suspend (TransferManifest) -> Boolean,
+    /** Asked once per session; [peerId] is the sender's certificate fingerprint on authenticated links, else null. */
+    private val onIncoming: suspend (manifest: TransferManifest, peerId: String?) -> Boolean,
     private val onPlanned: (TransferStats, peerName: String) -> Unit,
     private val onSessionDone: (ReceiverResult) -> Unit,
     private val onDropped: (Throwable) -> Unit = {},
@@ -39,21 +40,26 @@ class Receiver(
     private val streams: Int = Protocol.DEFAULT_STREAMS,
     /** false only in benchmark mode; the QR payload tells the sender. */
     private val encrypted: Boolean = true,
+    /** Local address to listen on (the P2P group owner IP); null binds every interface. */
+    private val bindAddress: String? = null,
 ) {
     @Volatile private var stats: TransferStats? = null
-    @Volatile private var sessionActive = false
+    private val sessionActive = java.util.concurrent.atomic.AtomicBoolean(false)
     private val activeData = AtomicInteger(0)
+    private val concurrent = AtomicInteger(0)
+    private val badTokens = AtomicInteger(0)
 
     /** Runs until the calling coroutine is cancelled. */
     suspend fun run(): Nothing = withContext(Dispatchers.IO) {
         val server: ServerSocket = if (encrypted) Tls.serverSocket() else ServerSocket()
         server.receiveBufferSize = Protocol.SOCKET_BUFFER
         server.reuseAddress = true
-        server.bind(InetSocketAddress(port))
+        server.bind(if (bindAddress != null) InetSocketAddress(java.net.InetAddress.getByName(bindAddress), port) else InetSocketAddress(port))
         try {
             coroutineScope {
                 while (true) {
                     val socket = runInterruptible { server.accept() }
+                    if (concurrent.get() >= MAX_CONNECTIONS) { runCatching { socket.close() }; continue }
                     socket.receiveBufferSize = Protocol.SOCKET_BUFFER
                     socket.soTimeout = 120_000
                     launch {
@@ -82,11 +88,17 @@ class Receiver(
      */
     suspend fun admit(link: Link) {
         var isControl = false
+        concurrent.incrementAndGet()
         try {
             link.use {
                 val inp = DataInputStream(BufferedInputStream(link.input, Protocol.STREAM_BUFFER))
                 val hello = wireJson.decodeFromString(Hello.serializer(), FrameIO.readJson(inp, Protocol.Type.HELLO))
-                if (hello.magic != Protocol.MAGIC || hello.token != token) {
+                if (hello.magic != Protocol.MAGIC || !java.security.MessageDigest.isEqual(hello.token.toByteArray(), token.toByteArray())) {
+                    // Online guessing of the pairing code: slow down, then give up on this listener
+                    // entirely (the controller shows a fresh code).
+                    val n = badTokens.incrementAndGet()
+                    if (n > MAX_BAD_TOKENS) throw TokenAbuse()
+                    if (n > 3) delay(2_000)
                     val out = DataOutputStream(link.output)
                     FrameIO.writeJson(out, Protocol.Type.ERROR, "bad token")
                     return
@@ -98,12 +110,19 @@ class Receiver(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: TokenAbuse) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.w("Wamda", "receiver ${link.kind} link from ${link.remote} failed (control=$isControl)", e)
-            if (isControl && sessionActive) dropSession(e)
+            if (isControl && sessionActive.get()) dropSession(e)
             // A failing data stream is noticed by the control handler when the sender tears down.
+        } finally {
+            concurrent.decrementAndGet()
         }
     }
+
+    /** Too many wrong pairing codes: the listener stops and the user gets a new code. */
+    class TokenAbuse : ProtocolException("too many wrong pairing codes")
 
     /**
      * Broadcast mode: this phone joined the SENDER's network and dials it. One control
@@ -141,18 +160,19 @@ class Receiver(
     }
 
     private suspend fun control(link: Link, inp: DataInputStream, hello: Hello, afterNeed: suspend (streams: Int) -> Unit = {}) {
-        if (sessionActive) throw ProtocolException("another session is active")
+        if (sessionActive.get()) throw ProtocolException("another session is active")
         val out = DataOutputStream(BufferedOutputStream(link.output, 64 * 1024))
         val manifest = wireJson.decodeFromString(TransferManifest.serializer(), FrameIO.readJson(inp, Protocol.Type.MANIFEST))
-        val peerName = hello.deviceName.ifBlank { manifest.senderName }
+        validate(manifest)
+        val peerName = hello.deviceName.ifBlank { manifest.senderName }.take(64)
 
-        val accepted = onIncoming(manifest)
+        val accepted = onIncoming(manifest, link.peerId)
         if (!accepted) {
             FrameIO.writeJson(out, Protocol.Type.NEED, wireJson.encodeToString(NeedResponse.serializer(), NeedResponse(false, reason = "declined")))
             throw ProtocolException("declined")
         }
 
-        sessionActive = true
+        if (!sessionActive.compareAndSet(false, true)) throw ProtocolException("another session is active")
         val missing = store.prepare(manifest)
         val skipped = manifest.files.map { it.id }.filter { it !in missing }
         val prefilled = missing.keys.associateWith { store.bytesAlready(it) }
@@ -178,7 +198,7 @@ class Receiver(
         val incomplete = store.incompleteIds()
         FrameIO.writeJson(out, Protocol.Type.ACK, wireJson.encodeToString(AckMessage.serializer(), AckMessage(incomplete.isEmpty(), incomplete)))
         stats = null
-        sessionActive = false
+        sessionActive.set(false)
         onSessionDone(ReceiverResult(done.bytesSent, incomplete, skipped))
     }
 
@@ -187,8 +207,28 @@ class Receiver(
         withTimeoutOrNull(3_000) { while (activeData.get() > 0) delay(20) }
         runCatching { store.finish() }
         stats = null
-        sessionActive = false
+        sessionActive.set(false)
         onDropped(cause)
+    }
+
+    /** Rejects manifests that would exhaust the receiver before the user even sees the dialog. */
+    private fun validate(m: TransferManifest) {
+        if (m.files.isEmpty() || m.files.size > MAX_FILES) throw ProtocolException("bad file count ${m.files.size}")
+        if (m.senderName.length > 64) throw ProtocolException("sender name too long")
+        val ids = HashSet<Int>(m.files.size)
+        for (f in m.files) {
+            if (f.size < 0 || f.size > MAX_FILE_SIZE) throw ProtocolException("bad file size ${f.size}")
+            if (f.name.isEmpty() || f.name.length > 255) throw ProtocolException("bad file name length")
+            if (f.path.length > 1024) throw ProtocolException("bad path length")
+            if (!ids.add(f.id)) throw ProtocolException("duplicate file id ${f.id}")
+        }
+    }
+
+    private companion object {
+        const val MAX_CONNECTIONS = 32
+        const val MAX_BAD_TOKENS = 20
+        const val MAX_FILES = 20_000
+        const val MAX_FILE_SIZE = 8L shl 40
     }
 
     private fun data(inp: DataInputStream, kind: String = "wifi") {

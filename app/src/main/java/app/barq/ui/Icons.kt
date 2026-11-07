@@ -11,8 +11,8 @@ import androidx.compose.ui.unit.dp
 
 /** Stroke icons from the design canvas, 24dp grid, no icon library needed. */
 object BarqIcons {
-    private fun stroke(name: String, width: Float = 2f, build: androidx.compose.ui.graphics.vector.ImageVector.Builder.() -> Unit) =
-        ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply(build).build()
+    private fun stroke(name: String, width: Float = 2f, autoMirror: Boolean = false, build: androidx.compose.ui.graphics.vector.ImageVector.Builder.() -> Unit) =
+        ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f, autoMirror = autoMirror).apply(build).build()
 
     private fun ImageVector.Builder.line(d: String, w: Float = 2f) = path(
         fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = w,
@@ -52,10 +52,20 @@ object BarqIcons {
     val Bolt: ImageVector by lazy { stroke("bolt") { fill("M13 2 5 14h6l-1 8 8-12h-6l1-8Z") } }
     val ArrowUp: ImageVector by lazy { stroke("up") { line("M12 19V5"); line("M5 12l7-7 7 7") } }
     val ArrowDown: ImageVector by lazy { stroke("down") { line("M12 5v14"); line("M19 12l-7 7-7-7") } }
-    val Back: ImageVector by lazy { stroke("back") { line("M9 6l6 6-6 6") } }
-    val ArrowUpRight: ImageVector by lazy { stroke("upright") { line("M7 17L17 7"); line("M9 7h8v8") } }
-    val ArrowDownLeft: ImageVector by lazy { stroke("downleft") { line("M17 7L7 17"); line("M15 17H7V9") } }
-    val Next: ImageVector by lazy { stroke("next") { line("M15 6l-6 6 6 6") } }
+    val Back: ImageVector by lazy { stroke("back", autoMirror = true) { line("M9 6l6 6-6 6") } }
+    val ArrowUpRight: ImageVector by lazy { stroke("upright", autoMirror = true) { line("M7 17L17 7"); line("M9 7h8v8") } }
+    val ArrowDownLeft: ImageVector by lazy { stroke("downleft", autoMirror = true) { line("M17 7L7 17"); line("M15 17H7V9") } }
+    val Next: ImageVector by lazy { stroke("next", autoMirror = true) { line("M15 6l-6 6 6 6") } }
+    val Folder: ImageVector by lazy { stroke("folder") { line("M3 6h6l2 2h10v11H3Z") } }
+    val Music: ImageVector by lazy {
+        stroke("music") {
+            line("M9 18V5l12-2v13")
+            fill("M6 16m-3 0c0-1.7 1.3-3 3-3s3 1.3 3 3-1.3 3-3 3-3-1.3-3-3Z")
+            fill("M18 14m-3 0c0-1.7 1.3-3 3-3s3 1.3 3 3-1.3 3-3 3-3-1.3-3-3Z")
+        }
+    }
+    val Usb: ImageVector by lazy { stroke("usb") { line("M12 2v16"); line("M12 18l-3 3h6l-3-3Z"); line("M12 6l3 3"); line("M12 9l-4 2") } }
+    val Monitor: ImageVector by lazy { stroke("monitor") { line("M3 4h18v12H3Z"); line("M8 20h8"); line("M12 16v4") } }
     val Check: ImageVector by lazy { stroke("check") { line("M5 12l5 5L20 7", 2.6f) } }
     val Lock: ImageVector by lazy { stroke("lock") { line("M4 13h16v8H4Z", 2.4f); line("M8 13V9l1-3 3-1 3 1 1 3v4", 2.4f) } }
     val File: ImageVector by lazy { stroke("file") { line("M14 2H6l-2 2v16l2 2h12l2-2V8Z"); line("M14 2v6h6") } }

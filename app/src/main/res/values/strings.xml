@@ -3,8 +3,6 @@
     <string name="app_name">ومضة</string>
     <string name="home_send">إرسال</string>
     <string name="home_receive">استلام</string>
-    <string name="home_device">هذا الجهاز: %1$s</string>
-    <string name="home_tagline">نقل الملفات بين الهواتف دون إنترنت</string>
 
     <string name="perm_title">صلاحيات مطلوبة</string>
     <string name="perm_body">يحتاج التطبيق إلى صلاحية الأجهزة القريبة لإنشاء شبكة مباشرة بين الهاتفين، وصلاحية الإشعارات لعرض تقدم النقل.</string>
@@ -12,7 +10,6 @@
 
     <string name="receive_preparing">جارٍ إنشاء الشبكة المباشرة…</string>
     <string name="receive_scan_hint">امسح هذا الكود من هاتف المرسل</string>
-    <string name="receive_band">النطاق: %1$s</string>
     <string name="receive_band_warn">الهاتف يعمل على 2.4GHz، السرعة ستكون محدودة. افصل الهاتف عن شبكة Wi-Fi ثم أعد المحاولة.</string>
     <string name="receive_waiting">في انتظار المرسل…</string>
 
@@ -22,13 +19,10 @@
     <string name="decline">رفض</string>
 
     <string name="send_pick">اختر الملفات</string>
-    <string name="send_picked">%1$d ملف، %2$s</string>
     <string name="send_scan">مسح كود المستقبل</string>
     <string name="send_connecting_wifi">جارٍ الاتصال بشبكة المستقبل…</string>
     <string name="send_handshake">جارٍ المصافحة…</string>
 
-    <string name="transfer_sending">إرسال إلى %1$s</string>
-    <string name="transfer_receiving">استلام من %1$s</string>
     <string name="transfer_streams">%1$d اتصالات متوازية</string>
     <string name="transfer_eta">المتبقي %1$s</string>
     <string name="transfer_done">اكتمل النقل</string>
@@ -37,16 +31,13 @@
     <string name="transfer_cancel">إلغاء</string>
     <string name="transfer_skipped">موجود مسبقًا</string>
     <string name="back_home">العودة</string>
+    <string name="back_to_home">العودة للرئيسية</string>
 
-    <string name="home_send_hint">اختر الملفات ثم امسح الكود</string>
-    <string name="home_receive_hint">اعرض كود QR</string>
     <string name="chip_encrypted">مشفّر</string>
     <string name="receive_network_name">اسم الشبكة المؤقتة</string>
     <string name="receive_network_note">تُحذف تلقائيًا بعد انتهاء النقل</string>
-    <string name="send_none_picked">لم تختر ملفات بعد</string>
     <string name="send_picked_count">%1$d ملف جاهز للإرسال</string>
     <string name="send_pick_hint">الصور والفيديو تُرسل كما هي دون ضغط</string>
-    <string name="send_pick_again">تغيير الملفات</string>
     <string name="send_bad_qr">هذا الكود ليس كود ومضة</string>
     <string name="transfer_sending_to">إرسال إلى</string>
     <string name="transfer_receiving_from">استلام من</string>
@@ -58,12 +49,11 @@
     <string name="stat_avg">المتوسط</string>
 
     <string name="incoming_trust">الوثوق بهذا الجهاز والقبول تلقائيًا لاحقًا</string>
-    <string name="home_recent">آخر العمليات</string>
     <string name="home_recent_empty">لا عمليات بعد. ابدأ بإرسال أو استلام.</string>
-    <string name="home_history_all">السجل كاملًا</string>
 
     <string name="history_title">السجل</string>
     <string name="history_clear">مسح</string>
+    <string name="history_clear_confirm">سيُحذف السجل كاملًا. الملفات المستلمة لا تتأثر.</string>
     <string name="history_empty">لا عمليات مسجّلة بعد</string>
     <string name="history_total">إجمالي المنقول</string>
     <string name="history_count">عملية</string>
@@ -109,8 +99,9 @@
     <string name="scan_hint">ضع كود QR داخل الإطار</string>
     <string name="scan_close">إغلاق الماسح</string>
 
-    <string name="send_find_nearby">الأجهزة القريبة</string>
     <string name="discover_title">اختر المستقبل</string>
+    <string name="discover_aware">Wi-Fi Aware</string>
+    <string name="discover_fetch_failed">تعذّر قراءة بيانات الجهاز، جرّب مرة أخرى أو امسح الكود</string>
     <string name="discover_searching">جارٍ البحث عبر Bluetooth…</string>
     <string name="discover_searching_aware">جارٍ البحث عبر Bluetooth وWi-Fi Aware…</string>
     <string name="discover_found">%1$d جهاز قريب</string>
@@ -139,7 +130,7 @@
     <string name="cable_title">النقل بالكابل</string>
     <string name="cable_searching">وصّل الهاتفين بكابل USB-C…</string>
     <string name="cable_switching">جارٍ تهيئة الهاتف الآخر لوضع الملحق…</string>
-    <string name="cable_hint">قد يظهر على أحد الهاتفين طلب "السماح لومضة بالوصول"؛ اقبله. إن لم يحدث شيء فاقلب طرفي الكابل.</string>
+    <string name="cable_hint">قد يظهر على أحد الهاتفين طلب «السماح لومضة بالوصول»؛ اقبله. إن لم يحدث شيء فاقلب طرفي الكابل.</string>
     <string name="cable_steps_title">كيف يعمل</string>
     <string name="cable_steps">كابل USB-C بين الهاتفين مباشرة. أحدهما يعمل كمضيف USB والآخر كملحق؛ ومضة تختار الأدوار تلقائيًا. السرعة تعتمد على المنفذ: USB 2.0 نحو 30 MB/s، وUSB 3 أعلى بكثير. مع Wi-Fi متصل في نفس الوقت يُستخدم المساران معًا.</string>
     <string name="cable_connected">متصل بـ %1$s</string>
@@ -175,6 +166,8 @@
     <string name="pick_docs_hint">المستندات والملفات الأخرى تُختار من مستعرض النظام</string>
     <string name="pick_browse">استعراض الملفات</string>
     <string name="pick_need_permission">يحتاج التطبيق إذن الوصول إلى الصور والفيديو والصوت لعرضها هنا</string>
+    <string name="pick_loading">جارٍ التحميل…</string>
+    <string name="pick_walking">جارٍ قراءة المجلد…</string>
 
     <string name="send_more">إرسال ملفات أخرى</string>
     <string name="receive_more">استلام المزيد</string>

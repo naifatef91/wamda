@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -94,7 +95,7 @@ fun HomeScreen(
 
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 28.dp),
+            .padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 28.dp),
     ) {
         // Header: settings at the start edge, app name in the middle, avatar at the end.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -110,7 +111,7 @@ fun HomeScreen(
                 Modifier.size(40.dp).clip(CircleShape).background(c.primaryContainer).border(1.dp, c.outline, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(prefs.deviceName.trim().take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = c.onPrimaryContainer)
+                Text(prefs.deviceName.trim().take(1).uppercase().ifBlank { "?" }, style = MaterialTheme.typography.titleMedium, color = c.onPrimaryContainer)
             }
         }
 
@@ -144,19 +145,16 @@ fun HomeScreen(
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BarqButton(stringResource(R.string.home_pc), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Wifi, modifier = Modifier.weight(1f))
-            BarqButton(stringResource(R.string.home_cable), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Next, modifier = Modifier.weight(1f))
+            BarqButton(stringResource(R.string.home_pc), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Monitor, modifier = Modifier.weight(1f))
+            BarqButton(stringResource(R.string.home_cable), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Usb, modifier = Modifier.weight(1f))
         }
 
         Spacer(Modifier.height(26.dp))
-        Text(stringResource(R.string.home_activity), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+        SectionLabel(stringResource(R.string.home_activity))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.home_transfers), style = MaterialTheme.typography.titleLarge)
             if (records.isNotEmpty()) {
-                Text(
-                    stringResource(R.string.home_view_all), style = MaterialTheme.typography.labelMedium, color = c.primary,
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onHistory).padding(horizontal = 6.dp, vertical = 4.dp),
-                )
+                TextButton(onClick = onHistory) { Text(stringResource(R.string.home_view_all), style = MaterialTheme.typography.labelMedium, color = c.primary) }
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -253,7 +251,7 @@ private fun ActionCard(
         ) { Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp)) }
         Column {
             Text(title, style = MaterialTheme.typography.titleMedium, color = fg, fontWeight = FontWeight.SemiBold)
-            Text(hint, style = MaterialTheme.typography.bodySmall, color = fg.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(hint, style = MaterialTheme.typography.bodySmall, color = fg.copy(alpha = 0.9f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

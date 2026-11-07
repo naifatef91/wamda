@@ -63,7 +63,7 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
 
     fun write(fileId: Int, offset: Long, buf: ByteArray, len: Int) {
         val f = open[fileId] ?: throw ProtocolException("data for unknown file $fileId")
-        if (offset < 0 || offset + len > f.entry.size) throw ProtocolException("write outside file bounds")
+        if (offset < 0 || len < 0 || offset % Protocol.CHUNK_SIZE != 0L || offset > f.entry.size - len) throw ProtocolException("write outside file bounds")
         val bb = ByteBuffer.wrap(buf, 0, len)
         var pos = offset
         while (bb.hasRemaining()) pos += f.channel.write(bb, pos)

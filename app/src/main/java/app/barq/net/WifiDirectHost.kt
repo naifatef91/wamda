@@ -108,6 +108,7 @@ class WifiDirectHost(context: Context) {
 
     private fun randomAlnum(n: Int): String {
         val chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        return (1..n).map { chars.random() }.joinToString("")
+        val r = java.security.SecureRandom()
+        return (1..n).map { chars[r.nextInt(chars.length)] }.joinToString("")
     }
 }

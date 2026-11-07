@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,12 +47,7 @@ fun BroadcastScreen(s: TransferState.Broadcasting, fileCount: Int, onFinish: () 
     BackHandler { onFinish() }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onFinish) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.broadcast_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.send_picked_count, fileCount), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
-            }
+        TopBar(stringResource(R.string.broadcast_title), subtitle = stringResource(R.string.send_picked_count, fileCount), onBack = onFinish) {
             BarqChip(s.band, if (s.band == "2.4GHz") ChipTone.Warn else ChipTone.Ok, leading = BarqIcons.Wifi)
         }
 
@@ -72,7 +65,7 @@ fun BroadcastScreen(s: TransferState.Broadcasting, fileCount: Int, onFinish: () 
                 Spacer(Modifier.height(4.dp))
                 SectionLabel(
                     stringResource(R.string.broadcast_peers, s.peers.size),
-                    "${s.peers.count { it.status == PeerStatus.DONE }} ✓",
+                    "${s.peers.count { it.status == PeerStatus.DONE }} / ${s.peers.size}",
                 )
             }
             if (s.peers.isEmpty()) {

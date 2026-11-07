@@ -22,19 +22,20 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,9 +83,12 @@ fun mediaPermissions(): List<String> =
     if (Build.VERSION.SDK_INT >= 33) listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
     else listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 
-/** In-app file browser matching the Pick artboard: type tabs, date-grouped grid, multi-select, sticky total bar. */
+/**
+ * In-app file browser matching the Pick artboard: type tabs, date-grouped grid, multi-select, sticky total bar.
+ * [doneLabel] overrides the confirm button's text (e.g. "Share files" in PC mode).
+ */
 @Composable
-fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
+fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit, doneLabel: String? = null) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     var tab by remember { mutableStateOf(Tab.IMAGES) }
@@ -140,9 +145,7 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-            Text(stringResource(R.string.send_pick), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+        TopBar(stringResource(R.string.send_pick), onBack = onBack) {
             val visible = items.orEmpty()
             val allOn = visible.isNotEmpty() && visible.all { selected.value.containsKey(it.key) }
             if (visible.isNotEmpty() && tab != Tab.DOCS && tab != Tab.FOLDERS) {
@@ -155,19 +158,19 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Tab.entries.forEach { t ->
                 val on = t == tab
-                Text(
-                    stringResource(t.label),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (on) c.onPrimary else c.onSurfaceVariant,
-                    modifier = Modifier.clip(CircleShape).background(if (on) c.primary else c.surface)
+                Box(
+                    Modifier.heightIn(min = 44.dp).clip(CircleShape).background(if (on) c.primary else c.surface)
                         .border(1.dp, if (on) c.primary else c.outline, CircleShape)
-                        .clickable {
+                        .selectable(selected = on, role = Role.Tab) {
                             tab = t
                             if (t == Tab.DOCS) pickDocs.launch(arrayOf("*/*"))
                             if (t == Tab.FOLDERS && folders.isEmpty()) pickTree.launch(null)
                         }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(stringResource(t.label), style = MaterialTheme.typography.labelMedium, color = if (on) c.onPrimary else c.onSurfaceVariant)
+                }
             }
         }
 
@@ -184,7 +187,9 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
                 !granted && tab != Tab.DOCS && tab != Tab.APPS -> Empty(stringResource(R.string.pick_need_permission)) {
                     TextButton(onClick = { askMedia.launch(mediaPermissions().toTypedArray()) }) { Text(stringResource(R.string.perm_grant)) }
                 }
-                items == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                items == null -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+                    Spinner(stringResource(R.string.pick_loading))
+                }
                 items.isEmpty() -> Empty(stringResource(if (tab == Tab.DOCS) R.string.pick_docs_hint else R.string.pick_empty)) {
                     if (tab == Tab.DOCS) TextButton(onClick = { pickDocs.launch(arrayOf("*/*")) }) { Text(stringResource(R.string.pick_browse)) }
                 }
@@ -205,18 +210,12 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
                     style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(
-                Modifier.clip(RoundedCornerShape(14.dp)).background(if (sel.isEmpty()) c.primary.copy(alpha = 0.4f) else c.primary)
-                    .clickable(enabled = sel.isNotEmpty()) { onDone(sel.toList()) }.padding(horizontal = 22.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                val session = TransferController.openSendSession
-                Text(
-                    if (session != null) stringResource(R.string.send_to_same, session.name) else stringResource(R.string.pick_next),
-                    style = MaterialTheme.typography.labelLarge, color = c.onPrimary,
-                )
-                Icon(BarqIcons.Next, contentDescription = null, tint = c.onPrimary, modifier = Modifier.size(18.dp))
-            }
+            val session = TransferController.openSendSession
+            val label = doneLabel ?: if (session != null) stringResource(R.string.send_to_same, session.name) else stringResource(R.string.pick_next)
+            BarqButton(
+                label, { onDone(sel.toList()) }, height = 48, leading = BarqIcons.Next, fillWidth = false, enabled = sel.isNotEmpty(),
+                modifier = Modifier.widthIn(max = 200.dp),
+            )
         }
     }
 }
@@ -275,28 +274,25 @@ private fun FileList(items: List<PickedFile>, selected: Map<String, PickedFile>,
         items(items, key = { it.key }) { f ->
             val on = selected.containsKey(f.key)
             val bmp by produceState<Bitmap?>(null, f.key) { value = MediaRepository.thumbnail(ctx, f, 96) }
-            Row(
-                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(c.surface)
-                    .border(if (on) 1.5.dp else 1.dp, if (on) c.primary else c.outline, MaterialTheme.shapes.medium)
-                    .clickable { toggle(f) }.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(c.primaryContainer), contentAlignment = Alignment.Center) {
-                    val b = bmp
-                    if (b != null) Image(b.asImageBitmap(), contentDescription = null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    else Icon(if (f.kind == FileKind.AUDIO) BarqIcons.Video else BarqIcons.File, contentDescription = null, tint = c.primary, modifier = Modifier.size(22.dp))
+            BarqCard(Modifier.fillMaxWidth(), borderColor = if (on) c.primary else null, borderWidth = if (on) 1.5.dp else 1.dp) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { toggle(f) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(c.primaryContainer), contentAlignment = Alignment.Center) {
+                        val b = bmp
+                        if (b != null) Image(b.asImageBitmap(), contentDescription = null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        else Icon(if (f.kind == FileKind.AUDIO) BarqIcons.Music else BarqIcons.File, contentDescription = null, tint = c.primary, modifier = Modifier.size(22.dp))
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(f.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            formatBytes(f.size) + if (f.durationMs > 0) " · " + formatDuration(f.durationMs / 1000) else "",
+                            style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
+                        )
+                    }
+                    SelectDot(on)
                 }
-                Column(Modifier.weight(1f)) {
-                    Text(f.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        formatBytes(f.size) + if (f.durationMs > 0) " · " + formatDuration(f.durationMs / 1000) else "",
-                        style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
-                    )
-                }
-                Box(
-                    Modifier.size(24.dp).clip(CircleShape).background(if (on) c.primary else Color.Transparent).border(2.dp, if (on) c.primary else c.outline, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) { if (on) Icon(BarqIcons.Check, contentDescription = null, tint = c.onPrimary, modifier = Modifier.size(14.dp)) }
             }
         }
     }
@@ -310,34 +306,45 @@ private fun FolderList(
     val c = MaterialTheme.colorScheme
     LazyVerticalGrid(columns = GridCells.Fixed(1), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
-            BarqButton(stringResource(R.string.pick_add_folder), onAdd, kind = ButtonKind.Tonal, height = 48, leading = BarqIcons.File)
+            BarqButton(stringResource(R.string.pick_add_folder), onAdd, kind = ButtonKind.Tonal, height = 48, leading = BarqIcons.Folder)
         }
         if (walking) {
-            item { Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator() } }
+            item {
+                Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spinner(stringResource(R.string.pick_walking))
+                }
+            }
         }
         if (folders.isEmpty() && !walking) {
             item { Text(stringResource(R.string.pick_folders_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(8.dp)) }
         }
         items(folders, key = { it.first }) { (name, files) ->
             val on = files.isNotEmpty() && files.all { selected.containsKey(it.key) }
-            Row(
-                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(c.surface)
-                    .border(if (on) 1.5.dp else 1.dp, if (on) c.primary else c.outline, MaterialTheme.shapes.medium)
-                    .clickable { onToggle(files) }.padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                IconBadge(BarqIcons.File, c.primaryContainer, c.primary, size = 44)
-                Column(Modifier.weight(1f)) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(stringResource(R.string.pick_folder_summary, files.size, formatBytes(files.sumOf { it.size })), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+            BarqCard(Modifier.fillMaxWidth(), borderColor = if (on) c.primary else null, borderWidth = if (on) 1.5.dp else 1.dp) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { onToggle(files) }.padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    IconBadge(BarqIcons.Folder, c.primaryContainer, c.primary, size = 44)
+                    Column(Modifier.weight(1f)) {
+                        Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(stringResource(R.string.pick_folder_summary, files.size, formatBytes(files.sumOf { it.size })), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                    }
+                    SelectDot(on)
                 }
-                Box(
-                    Modifier.size(24.dp).clip(CircleShape).background(if (on) c.primary else Color.Transparent).border(2.dp, if (on) c.primary else c.outline, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) { if (on) Icon(BarqIcons.Check, contentDescription = null, tint = c.onPrimary, modifier = Modifier.size(14.dp)) }
             }
         }
     }
+}
+
+/** Round selection indicator used by the list rows. */
+@Composable
+private fun SelectDot(on: Boolean) {
+    val c = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(24.dp).clip(CircleShape).background(if (on) c.primary else Color.Transparent).border(2.dp, if (on) c.primary else c.outline, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) { if (on) Icon(BarqIcons.Check, contentDescription = null, tint = c.onPrimary, modifier = Modifier.size(14.dp)) }
 }
 
 @Composable

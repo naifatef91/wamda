@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,10 +57,11 @@ import kotlin.math.sin
 @Composable
 fun DiscoverScreen(
     fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onPicked: (QrPayload) -> Unit,
-    onBroadcast: () -> Unit = {}, onPickedAware: (Int) -> Unit = {},
+    onBroadcast: () -> Unit = {}, onPickedAware: (Int) -> Unit = {}, error: String? = null,
 ) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
+    val fetchFailed = stringResource(R.string.discover_fetch_failed)
     val scanner = remember { BleScanner(ctx) }
     val bleDevices by scanner.devices.collectAsStateWithLifecycle()
     // Wi-Fi Aware peers (FR-14) join the same radar; they have no RSSI, so they sit on the middle ring.
@@ -73,7 +73,7 @@ fun DiscoverScreen(
     }
     var scanning by remember { mutableStateOf(false) }
     var fetching by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var fetchError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
@@ -85,13 +85,7 @@ fun DiscoverScreen(
 
     BackHandler { onBack() }
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.discover_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.send_picked_count, fileCount), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
-            }
-        }
+        TopBar(stringResource(R.string.discover_title), subtitle = stringResource(R.string.send_picked_count, fileCount), onBack = onBack)
 
         Box(Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
             Ring(340); Ring(250); Ring(160, fill = c.primary.copy(alpha = 0.04f))
@@ -114,11 +108,11 @@ fun DiscoverScreen(
                             onPickedAware(d.address.removePrefix("aware:").toInt())
                             return@DeviceBubble
                         }
-                        fetching = d.address; error = null
+                        fetching = d.address; fetchError = null
                         scope.launch {
                             runCatching { scanner.fetchPayload(d.address) }
                                 .onSuccess { onPicked(it) }
-                                .onFailure { error = it.message ?: "error" }
+                                .onFailure { fetchError = fetchFailed }
                             fetching = null
                         }
                     },
@@ -139,10 +133,9 @@ fun DiscoverScreen(
                     style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant,
                 )
             }
-            Text(
-                error ?: stringResource(R.string.discover_hint),
-                style = MaterialTheme.typography.bodySmall, color = if (error != null) c.error else c.onSurfaceVariant, textAlign = TextAlign.Center,
-            )
+            Text(stringResource(R.string.discover_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, textAlign = TextAlign.Center)
+            val shownError = error ?: fetchError
+            if (shownError != null) InfoBanner(shownError, ChipTone.Warn, modifier = Modifier.padding(top = 4.dp))
         }
 
         Spacer(Modifier.weight(1f))
@@ -171,7 +164,7 @@ private fun DeviceBubble(d: NearbyDevice, busy: Boolean, modifier: Modifier, onC
         }
         Text(d.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         Text(
-            if (d.address.startsWith("aware:")) "Wi-Fi Aware"
+            if (d.address.startsWith("aware:")) stringResource(R.string.discover_aware)
             else stringResource(when { d.rssi > -60 -> R.string.discover_near; d.rssi > -78 -> R.string.discover_mid; else -> R.string.discover_far }),
             style = MaterialTheme.typography.labelSmall, color = if (d.address.startsWith("aware:")) c.primary else c.onSurfaceVariant,
         )

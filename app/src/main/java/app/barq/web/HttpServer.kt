@@ -122,6 +122,28 @@ class HttpServer(
     )
 
     private fun serve(socket: Socket) {
+        // Only the links PC mode owns: the Wi-Fi Direct group and USB tethering. The server is
+        // unauthenticated by design (the browser has no app), so it must not be reachable from the
+        // phone's regular Wi-Fi or mobile data.
+        if (!onAllowedInterface(socket)) {
+            Log.w(TAG, "refused ${socket.inetAddress?.hostAddress} on ${socket.localAddress?.hostAddress}: not a PC-mode link")
+            runCatching { socket.close() }
+            return
+        }
+        if (open.incrementAndGet() > MAX_CONNECTIONS) { open.decrementAndGet(); runCatching { socket.close() }; return }
+        try { serveChecked(socket) } finally { open.decrementAndGet() }
+    }
+
+    private val open = java.util.concurrent.atomic.AtomicInteger(0)
+
+    private fun onAllowedInterface(socket: Socket): Boolean {
+        val local = socket.localAddress ?: return false
+        if (local.isLoopbackAddress) return true
+        val name = runCatching { java.net.NetworkInterface.getByInetAddress(local)?.name }.getOrNull() ?: return false
+        return ALLOWED_IFACES.any { name.startsWith(it) }
+    }
+
+    private fun serveChecked(socket: Socket) {
         socket.soTimeout = 60_000
         socket.tcpNoDelay = true
         socket.inetAddress?.hostAddress?.let { addr -> _stats.update { it.copy(lastClientAddress = addr, lastSeenMs = System.currentTimeMillis()) } }
@@ -197,6 +219,10 @@ class HttpServer(
     private fun route(req: Request): Response {
         val get = req.method == "GET" || req.method == "HEAD"
         val path = req.path
+        // DNS rebinding: the page is only ever opened by IP literal, so a DNS name in Host means a
+        // foreign origin is probing the server.
+        val host = hostOf(req.headers["host"]) ?: return text(400, "Bad host")
+        if (!host.matches(IP_LITERAL)) return text(400, "Bad host")
         return when {
             get && (path == "/" || path == "/index.html") -> asset("pc/index.html", "text/html; charset=utf-8")
             get && path.startsWith("/pc/") -> {
@@ -326,6 +352,14 @@ class HttpServer(
     }
 
     private fun upload(req: Request): Response {
+        // CSRF: a plain HTML form from any site can POST multipart to this address without a
+        // preflight; the page's own uploader sets a custom header, which a cross-site form cannot.
+        if (req.headers["x-wamda-upload"] != "1") throw BadRequest("Missing upload header")
+        req.headers["origin"]?.let { origin ->
+            val originHost = hostOf(origin.substringAfter("://", origin))
+            val reqHost = hostOf(req.headers["host"])
+            if (origin != "null" && (originHost == null || originHost != reqHost)) throw BadRequest("Cross-origin upload refused")
+        }
         val ct = req.headers["content-type"] ?: throw BadRequest("Missing Content-Type")
         if (!ct.startsWith("multipart/form-data", ignoreCase = true)) throw BadRequest("Expected multipart/form-data")
         val boundary = boundaryOf(ct) ?: throw BadRequest("Missing boundary")
@@ -550,7 +584,8 @@ class HttpServer(
         for ((k, v) in r.headers) sb.append(k).append(": ").append(v).append("\r\n")
         sb.append("Content-Length: ").append(r.length).append("\r\n")
         sb.append("Connection: ").append(if (keepAlive) "keep-alive" else "close").append("\r\n")
-        sb.append("Server: Wamda\r\nX-Content-Type-Options: nosniff\r\n\r\n")
+        sb.append("Server: Wamda\r\nX-Content-Type-Options: nosniff\r\n")
+        sb.append("X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'\r\nReferrer-Policy: no-referrer\r\n\r\n")
         out.write(sb.toString().toByteArray(StandardCharsets.ISO_8859_1))
         if (!headOnly && r.status != 204 && r.status != 304) r.write(out)
     }
@@ -592,7 +627,17 @@ class HttpServer(
         const val PORT = 8080
         const val RELATIVE_PATH = "Download/Wamda"
         private const val TAG = "WamdaHttp"
-        private val ASSET_NAME = Regex("[A-Za-z0-9._-]{1,64}")
+        private const val MAX_CONNECTIONS = 32
+        /** Interface name prefixes PC mode may be reached on: Wi-Fi Direct group, USB tethering. */
+        private val ALLOWED_IFACES = listOf("p2p", "rndis", "usb", "ncm")
+        private val ASSET_NAME = Regex("[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}")
+        private val IP_LITERAL = Regex("""^\d{1,3}(\.\d{1,3}){3}$|^\[[0-9A-Fa-f:.%]+]$""")
+
+        /** Host part of a Host/Origin value without the port, brackets kept for IPv6; null when absent. */
+        fun hostOf(value: String?): String? {
+            val v = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            return if (v.startsWith("[")) v.substringBefore(']') + "]" else v.substringBefore(':')
+        }
 
         fun mimeFor(name: String): String {
             val ext = name.substringAfterLast('.', "").lowercase(Locale.US)

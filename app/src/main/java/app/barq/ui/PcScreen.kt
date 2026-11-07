@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,13 +70,7 @@ fun PcScreen(onBack: () -> Unit, onPickFiles: () -> Unit, shared: List<PickedFil
     BackHandler { stop() }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = stop) { Icon(BarqIcons.Back, contentDescription = stringResource(R.string.back_home)) }
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.pc_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.pc_subtitle), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
+        TopBar(stringResource(R.string.pc_title), subtitle = stringResource(R.string.pc_subtitle), onBack = stop)
 
         when (val s = state) {
             is PcState.Idle, is PcState.Starting -> Column(
@@ -93,13 +86,13 @@ fun PcScreen(onBack: () -> Unit, onPickFiles: () -> Unit, shared: List<PickedFil
                 Modifier.fillMaxWidth().weight(1f).padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
-                Icon(BarqIcons.Warning, contentDescription = null, tint = x.warn, modifier = Modifier.size(48.dp))
+                Icon(BarqIcons.Warning, contentDescription = null, tint = c.error, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.pc_failed, s.message), color = c.onSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(20.dp))
-                BarqButton(stringResource(R.string.pc_retry), onClick = { PcSession.start(ctx) }, kind = ButtonKind.Tonal)
+                BarqButton(stringResource(R.string.pc_retry), onClick = { PcSession.start(ctx) }, kind = ButtonKind.Tonal, height = 52)
                 Spacer(Modifier.height(10.dp))
-                BarqButton(stringResource(R.string.pc_stop), onClick = stop, kind = ButtonKind.Outlined)
+                BarqButton(stringResource(R.string.pc_stop), onClick = stop, kind = ButtonKind.Outlined, height = 52)
             }
 
             is PcState.Ready -> ReadyBody(s, shared.size, onPickFiles, stop)
@@ -114,7 +107,7 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
     val qr = remember(s.url) { qrBitmap(s.url, sizePx = 512) }
 
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         PcConnectionCard(s)
@@ -167,8 +160,7 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
             onClick = onPickFiles, leading = BarqIcons.ArrowUp,
         )
         Text(stringResource(R.string.pc_shared_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        BarqButton(stringResource(R.string.pc_stop), onClick = onStop, kind = ButtonKind.Outlined)
-        Spacer(Modifier.height(16.dp))
+        BarqButton(stringResource(R.string.pc_stop), onClick = onStop, kind = ButtonKind.Outlined, height = 52)
     }
 }
 

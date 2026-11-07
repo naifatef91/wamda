@@ -18,12 +18,15 @@ interface Link : Closeable {
     val kind: String
     /** Remote identity for logs; address or device name. */
     val remote: String
+    /** Fingerprint of the certificate the peer presented when the link is authenticated TLS; null otherwise. */
+    val peerId: String? get() = null
 }
 
 class SocketLink(val socket: Socket, override val kind: String = "wifi") : Link {
     override val input: InputStream get() = socket.getInputStream()
     override val output: OutputStream get() = socket.getOutputStream()
     override val remote: String get() = socket.inetAddress?.hostAddress ?: "?"
+    override val peerId: String? get() = app.barq.crypto.Tls.peerFingerprint(socket)
     override fun close() = socket.close()
 }
 

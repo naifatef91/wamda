@@ -56,24 +56,47 @@ object Tls {
         return Identity(kp.private, cert).also { cached = it }
     }
 
-    /** Unbound TLS server socket backed by this process's identity. Bind it after setting buffer sizes. */
+    /** Key manager that offers this process's certificate in both the server and the client role. */
+    private fun keyManager(id: Identity) = object : X509ExtendedKeyManager() {
+        override fun getClientAliases(keyType: String?, issuers: Array<Principal>?) = arrayOf(ALIAS)
+        override fun chooseClientAlias(keyType: Array<String>?, issuers: Array<Principal>?, socket: Socket?) = ALIAS
+        override fun chooseEngineClientAlias(keyType: Array<String>?, issuers: Array<Principal>?, engine: SSLEngine?) = ALIAS
+        override fun getServerAliases(keyType: String?, issuers: Array<Principal>?) = arrayOf(ALIAS)
+        override fun chooseServerAlias(keyType: String?, issuers: Array<Principal>?, socket: Socket?) = ALIAS
+        override fun chooseEngineServerAlias(keyType: String?, issuers: Array<Principal>?, engine: SSLEngine?) = ALIAS
+        override fun getCertificateChain(alias: String?) = arrayOf(id.certificate)
+        override fun getPrivateKey(alias: String?) = id.privateKey
+    }
+
+    /**
+     * Unbound TLS server socket backed by this process's identity. Bind it after setting buffer sizes.
+     * A client certificate is requested but not required: a peer that presents one is identified by
+     * its fingerprint, which is what "trusted device" auto-accept is bound to; a peer without one
+     * always gets the accept dialog.
+     */
     fun serverSocket(): SSLServerSocket {
         val id = identity()
-        val km = object : X509ExtendedKeyManager() {
-            override fun getClientAliases(keyType: String?, issuers: Array<Principal>?): Array<String>? = null
-            override fun chooseClientAlias(keyType: Array<String>?, issuers: Array<Principal>?, socket: Socket?): String? = null
-            override fun getServerAliases(keyType: String?, issuers: Array<Principal>?) = arrayOf(ALIAS)
-            override fun chooseServerAlias(keyType: String?, issuers: Array<Principal>?, socket: Socket?) = ALIAS
-            override fun chooseEngineServerAlias(keyType: String?, issuers: Array<Principal>?, engine: SSLEngine?) = ALIAS
-            override fun getCertificateChain(alias: String?) = arrayOf(id.certificate)
-            override fun getPrivateKey(alias: String?) = id.privateKey
+        val anyClient = object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {
+                if (chain.isEmpty()) throw CertificateException("empty chain")
+            }
+            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) =
+                throw CertificateException("server role only")
+            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
         }
-        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf(km), null, null) }
+        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf(keyManager(id)), arrayOf(anyClient), null) }
         val server = ctx.serverSocketFactory.createServerSocket() as SSLServerSocket
         server.enabledProtocols = PROTOCOLS
+        server.wantClientAuth = true
         server.needClientAuth = false
         server.useClientMode = false
         return server
+    }
+
+    /** Fingerprint of the certificate the other end presented on [socket]; null for plain sockets or no cert. */
+    fun peerFingerprint(socket: Socket): String? {
+        val ssl = socket as? SSLSocket ?: return null
+        return runCatching { (ssl.session.peerCertificates.firstOrNull() as? X509Certificate)?.let { fingerprintOf(it) } }.getOrNull()
     }
 
     /** Layers TLS over an already-connected socket and pins the receiver's certificate fingerprint. */
@@ -92,7 +115,7 @@ object Tls {
 
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
         }
-        val ctx = SSLContext.getInstance("TLS").apply { init(null, arrayOf(trust), null) }
+        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf(keyManager(identity())), arrayOf(trust), null) }
         val ssl = ctx.socketFactory.createSocket(plain, host, port, true) as SSLSocket
         ssl.enabledProtocols = PROTOCOLS
         ssl.useClientMode = true

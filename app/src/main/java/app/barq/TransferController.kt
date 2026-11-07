@@ -13,6 +13,7 @@ import app.barq.engine.Link
 import app.barq.engine.SenderTransport
 import app.barq.net.usb.UsbSession
 import app.barq.engine.Protocol
+import app.barq.engine.ProtocolException
 import app.barq.engine.QrPayload
 import app.barq.engine.ReadableFile
 import app.barq.engine.ReceiveStore
@@ -50,7 +51,7 @@ sealed interface TransferState {
     /** [dropped] = a sender was mid-transfer and vanished; same QR stays valid while we wait. */
     data class Listening(val qr: QrPayload, val band: String, val dropped: Boolean = false) : TransferState
     data class AwaitingAccept(val manifest: TransferManifest) : TransferState
-    data class Running(val direction: Direction, val peer: String, val band: String, val snapshot: Snapshot) : TransferState
+    data class Running(val direction: Direction, val peer: String, val band: String, val snapshot: Snapshot, val encrypted: Boolean = true) : TransferState
     /** [sessionOpen] = the link is still up, so more files can go without pairing again. */
     data class Finished(val direction: Direction, val peer: String, val snapshot: Snapshot, val incomplete: Int, val sessionOpen: Boolean = true) : TransferState
     data class Failed(val message: String, val retryable: Boolean = false) : TransferState
@@ -127,6 +128,7 @@ object TransferController {
                 android.util.Log.i(TAG, "aware data path up: ${addr.hostAddress}:${peer.advert.p}")
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
                 var stats: TransferStats? = null
+                requireEncryptionAgreement(app, peer.advert.e)
                 val transport = DialTransport(network, addr.hostAddress ?: "", peer.advert.p, peer.advert.fp, peer.advert.e, address = addr)
                 val sender = Sender(transport, peer.advert.t, deviceName(app), items, onPlanned = { s, p ->
                     stats = s; lastStats = s
@@ -136,7 +138,7 @@ object TransferController {
                 val ticker = launch {
                     while (isActive) {
                         delay(500)
-                        stats?.let { _state.value = TransferState.Running(Direction.SEND, peerName, "Aware", it.snapshot()) }
+                        stats?.let { _state.value = TransferState.Running(Direction.SEND, peerName, "Aware", it.snapshot(), encrypted = peer.advert.e) }
                     }
                 }
                 val result = try { sender.run() } finally { ticker.cancel() }
@@ -153,6 +155,18 @@ object TransferController {
     }
     private var acceptGate: CompletableDeferred<Boolean>? = null
     private var pendingSender: String? = null
+    /** Certificate fingerprint of the sender behind [pendingSender]; null on unauthenticated links (cable). */
+    private var pendingPeerId: String? = null
+
+    /** Six-digit pairing code from a CSPRNG; the receiver also throttles and then abandons guessers. */
+    private fun newToken(): String = (100000 + java.security.SecureRandom().nextInt(900000)).toString()
+
+    /** A payload asking for a plaintext transfer is honoured only when this phone is in benchmark mode too. */
+    private fun requireEncryptionAgreement(app: Context, peerWantsEncryption: Boolean) {
+        if (!peerWantsEncryption && !Settings.get(app).state.value.benchmarkPlain) {
+            throw ProtocolException("the other device asked for an unencrypted transfer")
+        }
+    }
 
     private var receiveQr: QrPayload? = null
     private var receiveBand: String = ""
@@ -177,7 +191,7 @@ object TransferController {
                 val settings = Settings.get(app)
                 val h = WifiDirectHost(app).also { host = it }
                 val group = h.start(if (settings.state.value.prefer5GHz) WifiDirectHost.Band.PREFER_5GHZ else WifiDirectHost.Band.AUTO)
-                val token = (100000 + (Math.random() * 900000).toInt()).toString()
+                val token = newToken()
                 val identity = Tls.identity()
                 val qr = QrPayload(
                     ssid = group.ssid, pass = group.passphrase, ip = group.ownerIp,
@@ -202,16 +216,24 @@ object TransferController {
                 val receiver = Receiver(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app),
                     store = ReceiveStore(app, resume = settings.state.value.skipExisting),
-                    onIncoming = { manifest ->
+                    onIncoming = { manifest, peerId ->
                         val s = settings.state.value
-                        if (s.autoAcceptTrusted && manifest.senderName in s.trustedDevices) return@Receiver true
+                        // Trust is keyed on the sender's certificate, never on the name it chose.
+                        val auto = s.autoAcceptTrusted && settings.isTrusted(manifest.senderName, peerId)
                         // Same sender, same session (reconnect or "send more"): no second dialog.
-                        if (manifest.senderName == acceptedPeer) return@Receiver true
-                        pendingSender = manifest.senderName
-                        val gate = CompletableDeferred<Boolean>().also { acceptGate = it }
-                        _state.value = TransferState.AwaitingAccept(manifest)
-                        val ok = gate.await()
-                        if (ok) acceptedPeer = manifest.senderName
+                        val same = peerId != null && peerId == acceptedPeer
+                        val ok = if (auto || same) true else {
+                            pendingSender = manifest.senderName; pendingPeerId = peerId
+                            val gate = CompletableDeferred<Boolean>().also { acceptGate = it }
+                            _state.value = TransferState.AwaitingAccept(manifest)
+                            gate.await()
+                        }
+                        if (ok) {
+                            acceptedPeer = peerId
+                            // Pairing is done: stop handing the network details to anyone else nearby.
+                            runCatching { advertiser?.stop() }; advertiser = null
+                            runCatching { awareHost?.stop() }; awareHost = null
+                        }
                         ok
                     },
                     onPlanned = { s, p ->
@@ -235,11 +257,12 @@ object TransferController {
                     },
                     streams = settings.state.value.streams,
                     encrypted = qr.enc,
+                    bindAddress = group.ownerIp,
                 )
                 val ticker = launch {
                     while (isActive) {
                         delay(500)
-                        stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, group.band, it.snapshot()) }
+                        stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, group.band, it.snapshot(), encrypted = qr.enc) }
                     }
                 }
                 activeReceiver = receiver
@@ -285,8 +308,8 @@ object TransferController {
     }
 
     fun accept(context: Context, yes: Boolean, trust: Boolean = false) {
-        if (yes && trust) pendingSender?.let { Settings.get(context).trust(it) }
-        pendingSender = null
+        if (yes && trust) pendingSender?.let { Settings.get(context).trust(it, pendingPeerId) }
+        pendingSender = null; pendingPeerId = null
         acceptGate?.complete(yes)
     }
 
@@ -328,6 +351,7 @@ object TransferController {
                         }
 
                         var stats: TransferStats? = null
+                        requireEncryptionAgreement(app, qr.enc)
                         // Multipath: if a cable to the receiver is up, two USB streams join the Wi-Fi ones.
                         val extras: List<suspend () -> Link> =
                             if (UsbSession.isConnected) List(2) { { UsbSession.openStream() } } else emptyList()
@@ -344,7 +368,7 @@ object TransferController {
                         val ticker = launch {
                             while (isActive) {
                                 delay(500)
-                                stats?.let { _state.value = TransferState.Running(Direction.SEND, peer, band, it.snapshot()) }
+                                stats?.let { _state.value = TransferState.Running(Direction.SEND, peer, band, it.snapshot(), encrypted = qr.enc) }
                             }
                         }
                         val result = try { sender.run() } finally { ticker.cancel() }
@@ -396,7 +420,7 @@ object TransferController {
                 val settings = Settings.get(app)
                 val h = WifiDirectHost(app).also { host = it }
                 val group = h.start(if (settings.state.value.prefer5GHz) WifiDirectHost.Band.PREFER_5GHZ else WifiDirectHost.Band.AUTO)
-                val token = (100000 + (Math.random() * 900000).toInt()).toString()
+                val token = newToken()
                 val qr = QrPayload(
                     ssid = group.ssid, pass = group.passphrase, ip = group.ownerIp, port = Protocol.PORT, token = token,
                     name = deviceName(app), freq = group.frequencyMhz, fp = Tls.identity().fingerprint, host = true,
@@ -418,7 +442,7 @@ object TransferController {
                 advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) } }
 
                 val server = BroadcastHost(
-                    port = Protocol.PORT, token = token, deviceName = deviceName(app), items = items,
+                    port = Protocol.PORT, token = token, deviceName = deviceName(app), items = items, bindAddress = group.ownerIp,
                     onJoined = { s, n -> peers[s] = PeerEntry(n, order++); publish() },
                     onPlanned = { s, _, st -> peers[s]?.let { it.stats = st; it.status = PeerStatus.RUNNING; it.startedAt = System.currentTimeMillis() }; publish() },
                     onDone = { s, r ->
@@ -480,13 +504,14 @@ object TransferController {
                 val network = c.connect(qr.ssid, qr.pass)
                 android.util.Log.i(TAG, "joined ${qr.ssid}; dialing ${qr.ip}:${qr.port}")
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
+                requireEncryptionAgreement(app, qr.enc)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = qr.token, deviceName = deviceName(app),
                     store = ReceiveStore(app, resume = settings.state.value.skipExisting),
-                    onIncoming = { manifest ->
+                    onIncoming = { manifest, peerId ->
                         val s = settings.state.value
-                        if (s.autoAcceptTrusted && manifest.senderName in s.trustedDevices) return@Receiver true
-                        pendingSender = manifest.senderName
+                        if (s.autoAcceptTrusted && settings.isTrusted(manifest.senderName, peerId)) return@Receiver true
+                        pendingSender = manifest.senderName; pendingPeerId = peerId
                         val gate = CompletableDeferred<Boolean>().also { acceptGate = it }
                         _state.value = TransferState.AwaitingAccept(manifest)
                         gate.await()
@@ -502,7 +527,7 @@ object TransferController {
                 val ticker = launch {
                     while (isActive) {
                         delay(500)
-                        stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, band, it.snapshot()) }
+                        stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, band, it.snapshot(), encrypted = qr.enc) }
                     }
                 }
                 try { receiver.runClient(network, qr.ip, qr.port, qr.fp) } finally { ticker.cancel() }
@@ -559,7 +584,7 @@ object TransferController {
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
                 val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
-                val token = (100000 + (Math.random() * 900000).toInt()).toString()
+                val token = newToken()
                 UsbSession.announceSend(token, deviceName(app))
                 delay(300) // let the remote install its receiver before the first stream opens
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
@@ -575,7 +600,7 @@ object TransferController {
                     if (p.isNotBlank()) peer = p
                 })
                 val ticker = launch {
-                    while (isActive) { delay(500); stats?.let { _state.value = TransferState.Running(Direction.SEND, peer, "USB", it.snapshot()) } }
+                    while (isActive) { delay(500); stats?.let { _state.value = TransferState.Running(Direction.SEND, peer, "USB", it.snapshot(), encrypted = false) } }
                 }
                 val result = try { sender.run() } finally { ticker.cancel() }
                 record(app, Direction.SEND, peer, "USB", stats, startedAt, result.incompleteFiles.size)
@@ -605,10 +630,9 @@ object TransferController {
                 val receiver = Receiver(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app),
                     store = ReceiveStore(app, resume = settings.state.value.skipExisting),
-                    onIncoming = { manifest ->
-                        val s = settings.state.value
-                        if (s.autoAcceptTrusted && manifest.senderName in s.trustedDevices) return@Receiver true
-                        pendingSender = manifest.senderName
+                    onIncoming = { manifest, _ ->
+                        // The cable carries no certificate, so a trusted name alone never skips the dialog.
+                        pendingSender = manifest.senderName; pendingPeerId = null
                         val gate = CompletableDeferred<Boolean>().also { acceptGate = it }
                         _state.value = TransferState.AwaitingAccept(manifest)
                         gate.await()
@@ -624,7 +648,7 @@ object TransferController {
                 )
                 activeReceiver = receiver
                 val ticker = launch {
-                    while (isActive) { delay(500); stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, "USB", it.snapshot()) } }
+                    while (isActive) { delay(500); stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, "USB", it.snapshot(), encrypted = false) } }
                 }
                 try { done.await() } finally { ticker.cancel() }
             } catch (e: CancellationException) {

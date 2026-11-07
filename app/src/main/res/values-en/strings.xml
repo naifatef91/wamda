@@ -3,8 +3,6 @@
     <string name="app_name">Wamda</string>
     <string name="home_send">Send</string>
     <string name="home_receive">Receive</string>
-    <string name="home_device">This device: %1$s</string>
-    <string name="home_tagline">Phone-to-phone file transfer, no internet</string>
 
     <string name="perm_title">Permissions needed</string>
     <string name="perm_body">Wamda needs the Nearby devices permission to create a direct network between the two phones, and Notifications to show transfer progress.</string>
@@ -12,7 +10,6 @@
 
     <string name="receive_preparing">Creating direct network…</string>
     <string name="receive_scan_hint">Scan this code from the sending phone</string>
-    <string name="receive_band">Band: %1$s</string>
     <string name="receive_band_warn">This phone is on 2.4GHz, speed will be limited. Disconnect from Wi-Fi and try again.</string>
     <string name="receive_waiting">Waiting for sender…</string>
 
@@ -22,13 +19,10 @@
     <string name="decline">Decline</string>
 
     <string name="send_pick">Choose files</string>
-    <string name="send_picked">%1$d files, %2$s</string>
     <string name="send_scan">Scan receiver code</string>
     <string name="send_connecting_wifi">Connecting to receiver network…</string>
     <string name="send_handshake">Handshaking…</string>
 
-    <string name="transfer_sending">Sending to %1$s</string>
-    <string name="transfer_receiving">Receiving from %1$s</string>
     <string name="transfer_streams">%1$d parallel streams</string>
     <string name="transfer_eta">%1$s left</string>
     <string name="transfer_done">Transfer complete</string>
@@ -37,16 +31,13 @@
     <string name="transfer_cancel">Cancel</string>
     <string name="transfer_skipped">Already present</string>
     <string name="back_home">Back</string>
+    <string name="back_to_home">Back to home</string>
 
-    <string name="home_send_hint">Pick files, then scan the code</string>
-    <string name="home_receive_hint">Show a QR code</string>
     <string name="chip_encrypted">Encrypted</string>
     <string name="receive_network_name">Temporary network name</string>
     <string name="receive_network_note">Removed automatically after the transfer</string>
-    <string name="send_none_picked">No files picked yet</string>
     <string name="send_picked_count">%1$d files ready to send</string>
     <string name="send_pick_hint">Photos and videos are sent as-is, never recompressed</string>
-    <string name="send_pick_again">Change files</string>
     <string name="send_bad_qr">That is not a Wamda code</string>
     <string name="transfer_sending_to">Sending to</string>
     <string name="transfer_receiving_from">Receiving from</string>
@@ -58,12 +49,11 @@
     <string name="stat_avg">average</string>
 
     <string name="incoming_trust">Trust this device and accept automatically next time</string>
-    <string name="home_recent">Recent</string>
     <string name="home_recent_empty">No transfers yet. Send or receive to start.</string>
-    <string name="home_history_all">Full history</string>
 
     <string name="history_title">History</string>
     <string name="history_clear">Clear</string>
+    <string name="history_clear_confirm">The whole history will be deleted. Received files are not affected.</string>
     <string name="history_empty">No transfers recorded yet</string>
     <string name="history_total">Total moved</string>
     <string name="history_count">transfers</string>
@@ -109,11 +99,12 @@
     <string name="scan_hint">Place the QR code inside the frame</string>
     <string name="scan_close">Close scanner</string>
 
-    <string name="send_find_nearby">Nearby devices</string>
     <string name="discover_title">Choose receiver</string>
+    <string name="discover_aware">Wi-Fi Aware</string>
+    <string name="discover_fetch_failed">Could not read the device details; try again or scan the code</string>
     <string name="discover_searching">Searching over Bluetooth…</string>
     <string name="discover_searching_aware">Searching over Bluetooth and Wi-Fi Aware…</string>
-    <string name="discover_found">%1$d nearby</string>
+    <string name="discover_found">%1$d devices nearby</string>
     <string name="discover_fetching">Reading connection details…</string>
     <string name="discover_hint">Tap a phone showing the Receive screen, or scan the code it shows</string>
     <string name="discover_bt_off">Bluetooth is off. Turn it on or scan the code instead.</string>
@@ -166,7 +157,7 @@
     <string name="settings_benchmark">Benchmark mode without encryption</string>
     <string name="settings_benchmark_hint">For comparison only: this phone receives without TLS. Turn it off after measuring.</string>
     <string name="pick_all">Select all</string>
-    <string name="pick_none">Clear</string>
+    <string name="pick_none">Deselect all</string>
     <string name="pick_count">%1$d files</string>
     <string name="pick_items">%1$d items</string>
     <string name="pick_hint">Choose what to send</string>
@@ -175,6 +166,8 @@
     <string name="pick_docs_hint">Documents and other files are chosen with the system browser</string>
     <string name="pick_browse">Browse files</string>
     <string name="pick_need_permission">Wamda needs access to photos, videos and audio to list them here</string>
+    <string name="pick_loading">Loading…</string>
+    <string name="pick_walking">Reading folder…</string>
 
     <string name="send_more">Send more files</string>
     <string name="receive_more">Receive more</string>

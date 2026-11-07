@@ -35,7 +35,6 @@
     <string name="pc_stats_received">استُلم من الكمبيوتر</string>
     <string name="pc_stats_client">آخر جهاز</string>
     <string name="pc_stats_none">لم يتصل أحد بعد</string>
-    <string name="pc_uploaded_count">%1$d ملف استُلم في Download/Wamda</string>
 
     <string name="pc_share">مشاركة ملفات</string>
     <string name="pc_share_count">مشاركة ملفات (%1$d)</string>

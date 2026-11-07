@@ -55,13 +55,30 @@ class Settings private constructor(context: Context) {
         _state.value = next
     }
 
-    fun trust(name: String) = update { it.copy(trustedDevices = (it.trustedDevices + name).distinct()) }
-    fun untrust(name: String) = update { it.copy(trustedDevices = it.trustedDevices - name) }
+    /**
+     * Trust is bound to the peer's certificate fingerprint, not its display name: a device
+     * trusted without a fingerprint (plain or cable link) is listed but never auto-accepted.
+     */
+    fun trust(name: String, fingerprint: String?) {
+        if (fingerprint != null) prefs.edit().putString(K_TRUST_FP + name, fingerprint).apply()
+        update { it.copy(trustedDevices = (it.trustedDevices + name).distinct()) }
+    }
+    fun untrust(name: String) {
+        prefs.edit().remove(K_TRUST_FP + name).apply()
+        update { it.copy(trustedDevices = it.trustedDevices - name) }
+    }
     fun isTrusted(name: String) = name in _state.value.trustedDevices
+
+    /** True only when [name] is trusted and [fingerprint] is the one recorded when the user trusted it. */
+    fun isTrusted(name: String, fingerprint: String?): Boolean {
+        if (fingerprint == null || name !in _state.value.trustedDevices) return false
+        val saved = prefs.getString(K_TRUST_FP + name, null) ?: return false
+        return java.security.MessageDigest.isEqual(saved.toByteArray(), fingerprint.toByteArray())
+    }
 
     private fun read() = BarqSettings(
         deviceName = prefs.getString(K_NAME, null)?.takeIf { it.isNotBlank() } ?: systemName,
-        autoAcceptTrusted = prefs.getBoolean(K_AUTO, true),
+        autoAcceptTrusted = prefs.getBoolean(K_AUTO, false),
         skipExisting = prefs.getBoolean(K_SKIP, true),
         prefer5GHz = prefs.getBoolean(K_5G, true),
         trustedDevices = prefs.getStringSet(K_TRUST, emptySet())!!.sorted(),
@@ -73,9 +90,9 @@ class Settings private constructor(context: Context) {
         benchmarkPlain = prefs.getBoolean(K_PLAIN, false),
     )
 
-    /** Eight digits: easy to read off the screen and type on a laptop. */
-    private fun randomDigits(): String = (1..8).map { ('0'..'9').random() }.joinToString("")
-    private fun randomSuffix(): String = (1..2).map { "ABCDEFGHJKMNPQRSTUVWXYZ23456789".random() }.joinToString("")
+    /** Ten digits from a CSPRNG: still easy to read off the screen and type on a laptop. */
+    private fun randomDigits(): String { val r = java.security.SecureRandom(); return (1..10).map { ('0'..'9').elementAt(r.nextInt(10)) }.joinToString("") }
+    private fun randomSuffix(): String { val r = java.security.SecureRandom(); val a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; return (1..2).map { a[r.nextInt(a.length)] }.joinToString("") }
 
     companion object {
         private const val K_NAME = "device_name"
@@ -83,6 +100,7 @@ class Settings private constructor(context: Context) {
         private const val K_SKIP = "skip_existing"
         private const val K_5G = "prefer_5ghz"
         private const val K_TRUST = "trusted_devices"
+        private const val K_TRUST_FP = "trusted_fp:"
         private const val K_THEME = "theme"
         private const val K_PC_SUFFIX = "pc_suffix"
         private const val K_PC_PASS = "pc_password"

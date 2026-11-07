@@ -22,8 +22,8 @@
     <string name="pc_use_5ghz_hint">Faster, but some computers cannot see 5GHz networks. Leave it off if the network does not appear.</string>
     <string name="pc_change_password">Change password</string>
     <string name="pc_password_rule">8 to 63 Latin letters or digits</string>
-    <string name="pc_step1_hint">Pick this network in the computer\'s Wi-Fi list and enter the password</string>
-    <string name="pc_ssid">Network</string>
+    <string name="pc_step1_hint">Pick this network in the computer\'s Wi-Fi list and enter the password. The network and password stay the same, so the computer remembers them next time.</string>
+    <string name="pc_ssid">Network name</string>
     <string name="pc_password">Password</string>
     <string name="pc_copy">Copy</string>
     <string name="pc_copied">Copied</string>
@@ -35,7 +35,6 @@
     <string name="pc_stats_received">Received from PC</string>
     <string name="pc_stats_client">Last client</string>
     <string name="pc_stats_none">Nobody connected yet</string>
-    <string name="pc_uploaded_count">%1$d file(s) received in Download/Wamda</string>
 
     <string name="pc_share">Share files</string>
     <string name="pc_share_count">Share files (%1$d)</string>

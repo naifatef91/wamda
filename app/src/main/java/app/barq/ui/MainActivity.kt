@@ -82,7 +82,14 @@ class MainActivity : ComponentActivity() {
             else -> emptyList()
         }
         if (uris.isEmpty()) return
-        val files = uris.mapNotNull { MediaRepository.fromDocument(this, it) }
+        // Only content:// URIs the sending app actually granted us; a file:// or ungranted URI could
+        // point at this app's own private files. A running transfer is never interrupted by an intent.
+        if (TransferController.state.value is TransferState.Running) return
+        val granted = uris.filter {
+            it.scheme == android.content.ContentResolver.SCHEME_CONTENT &&
+                checkCallingOrSelfUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) == PackageManager.PERMISSION_GRANTED
+        }
+        val files = granted.mapNotNull { MediaRepository.fromDocument(this, it) }
         if (files.isNotEmpty()) TransferController.shareIntake.value = files
     }
 }
@@ -161,7 +168,11 @@ fun BarqNav() {
         }
         composable("usb_pick") {
             val ctx = LocalContext.current
-            PickerScreen(onBack = { nav.popBackStack() }, onDone = { files -> nav.popBackStack(); TransferService.start(ctx); TransferController.startUsbSend(ctx, files) })
+            PickerScreen(
+                onBack = { nav.popBackStack() },
+                onDone = { files -> nav.popBackStack(); TransferService.start(ctx); TransferController.startUsbSend(ctx, files) },
+                doneLabel = stringResource(R.string.cable_send),
+            )
         }
         composable("pc") {
             val shared by PcSession.shared.collectAsStateWithLifecycle()
@@ -172,7 +183,7 @@ fun BarqNav() {
             )
         }
         composable("pc_pick") {
-            PickerScreen(onBack = { nav.popBackStack() }, onDone = { PcSession.setShared(it); nav.popBackStack() })
+            PickerScreen(onBack = { nav.popBackStack() }, onDone = { PcSession.setShared(it); nav.popBackStack() }, doneLabel = stringResource(R.string.pc_share))
         }
         composable("history") {
             HistoryScreen(onBack = { nav.popBackStack() }, onReceive = { nav.navigate("receive") })
@@ -184,10 +195,16 @@ fun BarqNav() {
         composable("privacy") { PrivacyScreen(onBack = { nav.popBackStack() }) }
         composable("terms") { TermsScreen(onBack = { nav.popBackStack() }) }
         composable("receive") {
-            ReceiveScreen(onHome = { TransferController.reset(); nav.popBackStack("home", false) })
+            ReceiveScreen(
+                onHome = { TransferController.reset(); nav.popBackStack("home", false) },
+                onMinimize = { nav.popBackStack("home", false) },
+            )
         }
         composable("send") {
-            SendScreen(onHome = { TransferController.reset(); nav.popBackStack("home", false) })
+            SendScreen(
+                onHome = { TransferController.reset(); nav.popBackStack("home", false) },
+                onMinimize = { nav.popBackStack("home", false) },
+            )
         }
     }
 }

@@ -389,6 +389,7 @@
     fd.append('file', job.file, job.file.name);
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/upload', true);
+    xhr.setRequestHeader('X-Wamda-Upload', '1');
     job.state = 'up'; state(job, 'up', 'جارٍ الرفع');
     job.pct.textContent = '0% · ' + fmt(job.file.size);
     xhr.upload.onprogress = function (e) {
