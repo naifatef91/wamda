@@ -112,6 +112,7 @@
     <string name="send_find_nearby">Nearby devices</string>
     <string name="discover_title">Choose receiver</string>
     <string name="discover_searching">Searching over Bluetooth…</string>
+    <string name="discover_searching_aware">Searching over Bluetooth and Wi-Fi Aware…</string>
     <string name="discover_found">%1$d nearby</string>
     <string name="discover_fetching">Reading connection details…</string>
     <string name="discover_hint">Tap a phone showing the Receive screen, or scan the code it shows</string>

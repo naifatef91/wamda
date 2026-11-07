@@ -54,6 +54,8 @@ class DialTransport(
     private val port: Int,
     private val fingerprint: String,
     private val encrypted: Boolean = true,
+    /** Resolved address to dial (Wi-Fi Aware gives a scoped IPv6 one); [host] is then only the TLS peer name. */
+    private val address: java.net.InetAddress? = null,
 ) : SenderTransport {
     override val writesHello = true
     override suspend fun control(): Socket = connect()
@@ -64,7 +66,7 @@ class DialTransport(
         socket.tcpNoDelay = false
         socket.sendBufferSize = Protocol.SOCKET_BUFFER
         socket.receiveBufferSize = Protocol.SOCKET_BUFFER
-        socket.connect(InetSocketAddress(host, port), 15_000)
+        socket.connect(if (address != null) InetSocketAddress(address, port) else InetSocketAddress(host, port), 15_000)
         socket.soTimeout = 60_000
         if (!encrypted) return socket
         if (fingerprint.isBlank()) throw ProtocolException("QR code has no certificate fingerprint; refusing unencrypted transfer")

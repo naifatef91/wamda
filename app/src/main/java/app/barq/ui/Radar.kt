@@ -56,11 +56,21 @@ import kotlin.math.sin
  * follows signal strength. Tapping one reads its connection payload over GATT.
  */
 @Composable
-fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onPicked: (QrPayload) -> Unit, onBroadcast: () -> Unit = {}) {
+fun DiscoverScreen(
+    fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onPicked: (QrPayload) -> Unit,
+    onBroadcast: () -> Unit = {}, onPickedAware: (Int) -> Unit = {},
+) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val scanner = remember { BleScanner(ctx) }
-    val devices by scanner.devices.collectAsStateWithLifecycle()
+    val bleDevices by scanner.devices.collectAsStateWithLifecycle()
+    // Wi-Fi Aware peers (FR-14) join the same radar; they have no RSSI, so they sit on the middle ring.
+    val aware = remember { app.barq.TransferController.awareScanner(ctx) }
+    val awarePeers by aware.devices.collectAsStateWithLifecycle()
+    var awareOn by remember { mutableStateOf(false) }
+    val devices = remember(bleDevices, awarePeers) {
+        bleDevices + awarePeers.map { NearbyDevice("aware:${it.id}", it.name, -70, it.lastSeen) }
+    }
     var scanning by remember { mutableStateOf(false) }
     var fetching by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -68,8 +78,9 @@ fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onP
 
     DisposableEffect(Unit) {
         scanning = scanner.start()
-        onDispose { scanner.stop() }
+        onDispose { scanner.stop(); app.barq.TransferController.stopAwareScan() }
     }
+    LaunchedEffect(Unit) { awareOn = runCatching { aware.start() }.getOrDefault(false) }
     LaunchedEffect(Unit) { while (isActive) { delay(2000); scanner.prune() } }
 
     BackHandler { onBack() }
@@ -99,6 +110,10 @@ fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onP
                     d, busy = fetching == d.address, modifier = Modifier.offset(x = x, y = y),
                     onClick = {
                         if (fetching != null) return@DeviceBubble
+                        if (d.address.startsWith("aware:")) {
+                            onPickedAware(d.address.removePrefix("aware:").toInt())
+                            return@DeviceBubble
+                        }
                         fetching = d.address; error = null
                         scope.launch {
                             runCatching { scanner.fetchPayload(d.address) }
@@ -116,9 +131,9 @@ fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onP
                 if (scanning) Box(Modifier.size(8.dp).clip(CircleShape).background(c.primary))
                 Text(
                     when {
-                        !scanning -> stringResource(R.string.discover_bt_off)
+                        !scanning && !awareOn -> stringResource(R.string.discover_bt_off)
                         fetching != null -> stringResource(R.string.discover_fetching)
-                        devices.isEmpty() -> stringResource(R.string.discover_searching)
+                        devices.isEmpty() -> stringResource(if (awareOn) R.string.discover_searching_aware else R.string.discover_searching)
                         else -> stringResource(R.string.discover_found, devices.size)
                     },
                     style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant,
@@ -156,8 +171,9 @@ private fun DeviceBubble(d: NearbyDevice, busy: Boolean, modifier: Modifier, onC
         }
         Text(d.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         Text(
-            stringResource(when { d.rssi > -60 -> R.string.discover_near; d.rssi > -78 -> R.string.discover_mid; else -> R.string.discover_far }),
-            style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant,
+            if (d.address.startsWith("aware:")) "Wi-Fi Aware"
+            else stringResource(when { d.rssi > -60 -> R.string.discover_near; d.rssi > -78 -> R.string.discover_mid; else -> R.string.discover_far }),
+            style = MaterialTheme.typography.labelSmall, color = if (d.address.startsWith("aware:")) c.primary else c.onSurfaceVariant,
         )
     }
 }

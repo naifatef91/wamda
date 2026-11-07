@@ -112,6 +112,7 @@
     <string name="send_find_nearby">الأجهزة القريبة</string>
     <string name="discover_title">اختر المستقبل</string>
     <string name="discover_searching">جارٍ البحث عبر Bluetooth…</string>
+    <string name="discover_searching_aware">جارٍ البحث عبر Bluetooth وWi-Fi Aware…</string>
     <string name="discover_found">%1$d جهاز قريب</string>
     <string name="discover_fetching">جارٍ قراءة بيانات الاتصال…</string>
     <string name="discover_hint">اضغط على جهاز يعرض شاشة الاستلام، أو امسح الكود الظاهر عليه</string>

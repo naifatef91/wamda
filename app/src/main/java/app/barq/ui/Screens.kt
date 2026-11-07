@@ -254,6 +254,7 @@ fun SendScreen(onHome: () -> Unit) {
             onScanQr = launchScan,
             onPicked = { qr = it },
             onBroadcast = { TransferService.start(ctx); TransferController.startBroadcast(ctx, files) },
+            onPickedAware = { id -> TransferService.start(ctx); TransferController.startSendingAware(ctx, id, files) },
         )
         is TransferState.Broadcasting -> BroadcastScreen(s, files.size, onFinish = onHome)
         is TransferState.Preparing -> Screen {

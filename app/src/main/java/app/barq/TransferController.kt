@@ -7,6 +7,7 @@ import app.barq.data.PickedFile
 import app.barq.data.Settings
 import app.barq.data.TransferRecord
 import app.barq.engine.BroadcastHost
+import app.barq.engine.DialTransport
 import app.barq.engine.FileEntry
 import app.barq.engine.Protocol
 import app.barq.engine.QrPayload
@@ -18,6 +19,8 @@ import app.barq.engine.Sender
 import app.barq.engine.Snapshot
 import app.barq.engine.TransferManifest
 import app.barq.engine.TransferStats
+import app.barq.net.AwareHost
+import app.barq.net.AwareScanner
 import app.barq.net.BleAdvertiser
 import app.barq.net.WifiClient
 import app.barq.net.WifiDirectHost
@@ -82,7 +85,69 @@ object TransferController {
     private var job: Job? = null
     private var host: WifiDirectHost? = null
     private var advertiser: BleAdvertiser? = null
+    private var awareHost: AwareHost? = null
     private var client: WifiClient? = null
+
+    // ---------- Wi-Fi Aware discovery (sender side) ----------
+
+    private var aware: AwareScanner? = null
+    private var lastAwarePeer: Int? = null
+    private var lastAwareFiles: List<PickedFile>? = null
+
+    /** The subscriber lives as long as the radar screen is open. */
+    fun awareScanner(context: Context): AwareScanner =
+        aware ?: AwareScanner(context.applicationContext).also { aware = it }
+
+    fun stopAwareScan() {
+        aware?.close(); aware = null
+    }
+
+    /** Sends over a Wi-Fi Aware data path to a peer found by [awareScanner]; the QR/Wi-Fi Direct path is unchanged. */
+    fun startSendingAware(context: Context, peerId: Int, files: List<PickedFile>) {
+        val app = context.applicationContext
+        val scanner = aware ?: return
+        val peer = scanner.peer(peerId) ?: return
+        cancelJobOnly()
+        lastSend = null
+        lastAwarePeer = peerId
+        lastAwareFiles = files
+        lastDirection = Direction.SEND
+        job = scope.launch {
+            var peerName = peer.name
+            var startedAt = 0L
+            var lastStats: TransferStats? = null
+            try {
+                _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
+                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+                _state.value = TransferState.Preparing(TransferState.Step.WIFI)
+                val (network, addr) = scanner.connect(peer)
+                android.util.Log.i(TAG, "aware data path up: ${addr.hostAddress}:${peer.advert.p}")
+                _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
+                var stats: TransferStats? = null
+                val transport = DialTransport(network, addr.hostAddress ?: "", peer.advert.p, peer.advert.fp, peer.advert.e, address = addr)
+                val sender = Sender(transport, peer.advert.t, deviceName(app), items) { s, p ->
+                    stats = s; lastStats = s
+                    if (startedAt == 0L) startedAt = System.currentTimeMillis()
+                    if (p.isNotBlank()) peerName = p
+                }
+                val ticker = launch {
+                    while (isActive) {
+                        delay(500)
+                        stats?.let { _state.value = TransferState.Running(Direction.SEND, peerName, "Aware", it.snapshot()) }
+                    }
+                }
+                val result = try { sender.run() } finally { ticker.cancel() }
+                record(app, Direction.SEND, peerName, "Aware", stats, startedAt, result.incompleteFiles.size)
+                _state.value = TransferState.Finished(Direction.SEND, peerName, stats?.snapshot() ?: emptySnapshot(), result.incompleteFiles.size, sessionOpen = false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "aware send failed", e)
+                lastStats?.let { st -> record(app, Direction.SEND, peerName, "Aware", st, startedAt, st.snapshot().files.count { !it.skipped && it.done < it.size }) }
+                _state.value = TransferState.Failed(describe(e), retryable = false)
+            }
+        }
+    }
     private var acceptGate: CompletableDeferred<Boolean>? = null
     private var pendingSender: String? = null
 
@@ -119,6 +184,11 @@ object TransferController {
                 receiveQr = qr; receiveBand = group.band
                 _state.value = TransferState.Listening(qr, group.band)
                 advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) } }
+                // Opportunistic Wi-Fi Aware publish; silently absent when the hardware or the P2P group forbids it.
+                awareHost = AwareHost(app).also { ah ->
+                    val ok = runCatching { ah.start(qr) }.getOrDefault(false)
+                    android.util.Log.i(TAG, "wifi aware publish: ${if (ok) "on" else "unavailable"}")
+                }
 
                 var stats: TransferStats? = null
                 var peer = ""
@@ -189,6 +259,8 @@ object TransferController {
                 android.util.Log.e(TAG, "receive failed", e)
                 _state.value = TransferState.Failed(describe(e), retryable = true)
             } finally {
+                runCatching { awareHost?.stop() }
+                awareHost = null
                 runCatching { advertiser?.stop() }
                 advertiser = null
                 runCatching { host?.stop() }
@@ -433,6 +505,7 @@ object TransferController {
     fun retry(context: Context) {
         when (lastDirection) {
             Direction.SEND -> lastSend?.let { (qr, files) -> startSending(context, qr, files) }
+                ?: lastAwarePeer?.let { id -> lastAwareFiles?.let { startSendingAware(context, id, it) } }
             Direction.RECEIVE -> lastReceiveFrom?.let { startReceivingFrom(context, it) } ?: startReceiving(context)
             null -> {}
         }
@@ -453,6 +526,8 @@ object TransferController {
         client?.close()
         client = null
         receiveQr = null
+        runCatching { awareHost?.stop() }
+        awareHost = null
         runCatching { advertiser?.stop() }
         advertiser = null
         host?.let { h -> scope.launch { runCatching { h.stop() } } }
