@@ -16,13 +16,13 @@ val hasUploadKey = keystoreProps.getProperty("storeFile") != null
 
 android {
     namespace = "app.barq"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.barq"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 2
+        targetSdk = 36
+        versionCode = 3
         versionName = "1.1.0"
     }
 
