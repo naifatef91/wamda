@@ -15,6 +15,8 @@ data class Hello(
     val token: String,
     val role: Int,
     val deviceName: String,
+    /** Broadcast mode: the receiver dials the sender and tags its control + data sockets with one session id. */
+    val session: String = "",
 )
 
 @Serializable
@@ -74,6 +76,8 @@ data class QrPayload(
     val fp: String = "",
     /** false = benchmark mode without TLS (receiver's developer setting); never the default. */
     val enc: Boolean = true,
+    /** true = broadcast mode: the SENDER owns this network; whoever scans joins and receives. */
+    val host: Boolean = false,
 ) {
     fun encode(): String = "barq:" + wireJson.encodeToString(serializer(), this)
 

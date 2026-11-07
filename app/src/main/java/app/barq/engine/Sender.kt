@@ -34,18 +34,64 @@ private data class ChunkJob(val fileId: Int, val index: Int)
 
 class SenderResult(val bytesSent: Long, val skippedFiles: List<Int>, val incompleteFiles: List<Int>)
 
-class Sender(
+/**
+ * Where the sender's sockets come from. Normally the sender dials the receiver
+ * ([DialTransport]); in broadcast mode the receiver dialed us and the sockets
+ * are handed over already connected ([HostedTransport]).
+ */
+interface SenderTransport {
+    /** The control connection; [writesHello] says whether this side must introduce itself on it. */
+    suspend fun control(): Socket
+    /** One more data connection, called once per stream after NEED. */
+    suspend fun data(): Socket
+    val writesHello: Boolean
+}
+
+/** Sender dials the receiver's TLS server (phone-to-phone default). */
+class DialTransport(
     private val network: Network?,
     private val host: String,
     private val port: Int,
-    private val token: String,
     private val fingerprint: String,
+    private val encrypted: Boolean = true,
+) : SenderTransport {
+    override val writesHello = true
+    override suspend fun control(): Socket = connect()
+    override suspend fun data(): Socket = connect()
+
+    private fun connect(): Socket {
+        val socket = network?.socketFactory?.createSocket() ?: Socket()
+        socket.tcpNoDelay = false
+        socket.sendBufferSize = Protocol.SOCKET_BUFFER
+        socket.receiveBufferSize = Protocol.SOCKET_BUFFER
+        socket.connect(InetSocketAddress(host, port), 15_000)
+        socket.soTimeout = 60_000
+        if (!encrypted) return socket
+        if (fingerprint.isBlank()) throw ProtocolException("QR code has no certificate fingerprint; refusing unencrypted transfer")
+        return Tls.wrapClient(socket, host, port, fingerprint)
+    }
+}
+
+/** Receiver dialed us (broadcast mode): control socket is ready, data sockets arrive on a channel. */
+class HostedTransport(private val controlSocket: Socket, private val dataSockets: Channel<Socket>) : SenderTransport {
+    override val writesHello = false
+    override suspend fun control(): Socket = controlSocket
+    override suspend fun data(): Socket = dataSockets.receive()
+}
+
+class Sender(
+    private val transport: SenderTransport,
+    private val token: String,
     private val deviceName: String,
     private val items: List<SendItem>,
     private val onPlanned: (TransferStats, peerName: String) -> Unit,
-    /** false only in the benchmark mode the receiver advertised in its QR payload. */
-    private val encrypted: Boolean = true,
 ) {
+    /** Phone-to-phone convenience constructor: dial the receiver. */
+    constructor(
+        network: Network?, host: String, port: Int, token: String, fingerprint: String, deviceName: String,
+        items: List<SendItem>, onPlanned: (TransferStats, peerName: String) -> Unit, encrypted: Boolean = true,
+    ) : this(DialTransport(network, host, port, fingerprint, encrypted), token, deviceName, items, onPlanned)
+
     private val byId = items.associateBy { it.entry.id }
 
     suspend fun run(): SenderResult = withContext(Dispatchers.IO) {
@@ -55,11 +101,13 @@ class Sender(
             files = items.map { it.entry },
         )
 
-        connect().use { control ->
+        transport.control().use { control ->
             val out = DataOutputStream(BufferedOutputStream(control.getOutputStream(), 64 * 1024))
             val inp = DataInputStream(BufferedInputStream(control.getInputStream(), 64 * 1024))
 
-            FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.CONTROL, deviceName = deviceName)))
+            if (transport.writesHello) {
+                FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.CONTROL, deviceName = deviceName)))
+            }
             FrameIO.writeJson(out, Protocol.Type.MANIFEST, wireJson.encodeToString(TransferManifest.serializer(), manifest))
 
             val need = wireJson.decodeFromString(NeedResponse.serializer(), FrameIO.readJson(inp, Protocol.Type.NEED))
@@ -99,9 +147,11 @@ class Sender(
         val open = HashMap<Int, ReadableFile>()
         val buf = ByteArray(Protocol.CHUNK_SIZE.toInt())
         try {
-            connect().use { socket ->
+            transport.data().use { socket ->
                 val out = DataOutputStream(BufferedOutputStream(socket.getOutputStream(), Protocol.STREAM_BUFFER))
-                FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.DATA, deviceName = deviceName)))
+                if (transport.writesHello) {
+                    FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.DATA, deviceName = deviceName)))
+                }
 
                 for (job in queue) {
                     val item = byId.getValue(job.fileId)
@@ -145,17 +195,5 @@ class Sender(
             if (n < 0) throw IOException("file shrank while sending")
             pos += n
         }
-    }
-
-    private fun connect(): Socket {
-        val socket = network?.socketFactory?.createSocket() ?: Socket()
-        socket.tcpNoDelay = false
-        socket.sendBufferSize = Protocol.SOCKET_BUFFER
-        socket.receiveBufferSize = Protocol.SOCKET_BUFFER
-        socket.connect(InetSocketAddress(host, port), 15_000)
-        socket.soTimeout = 60_000
-        if (!encrypted) return socket
-        if (fingerprint.isBlank()) throw ProtocolException("QR code has no certificate fingerprint; refusing unencrypted transfer")
-        return Tls.wrapClient(socket, host, port, fingerprint)
     }
 }

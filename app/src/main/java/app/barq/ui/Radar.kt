@@ -56,7 +56,7 @@ import kotlin.math.sin
  * follows signal strength. Tapping one reads its connection payload over GATT.
  */
 @Composable
-fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onPicked: (QrPayload) -> Unit) {
+fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onPicked: (QrPayload) -> Unit, onBroadcast: () -> Unit = {}) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val scanner = remember { BleScanner(ctx) }
@@ -131,8 +131,9 @@ fun DiscoverScreen(fileCount: Int, onBack: () -> Unit, onScanQr: () -> Unit, onP
         }
 
         Spacer(Modifier.weight(1f))
-        Box(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             BarqButton(stringResource(R.string.send_scan), onScanQr, kind = ButtonKind.Tonal, leading = BarqIcons.Qr)
+            BarqButton(stringResource(R.string.broadcast_title), onBroadcast, kind = ButtonKind.Outlined, height = 52, leading = BarqIcons.ArrowUpRight)
         }
     }
 }

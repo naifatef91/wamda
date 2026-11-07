@@ -6,6 +6,7 @@ import app.barq.data.HistoryStore
 import app.barq.data.PickedFile
 import app.barq.data.Settings
 import app.barq.data.TransferRecord
+import app.barq.engine.BroadcastHost
 import app.barq.engine.FileEntry
 import app.barq.engine.Protocol
 import app.barq.engine.QrPayload
@@ -47,9 +48,15 @@ sealed interface TransferState {
     /** [sessionOpen] = the link is still up, so more files can go without pairing again. */
     data class Finished(val direction: Direction, val peer: String, val snapshot: Snapshot, val incomplete: Int, val sessionOpen: Boolean = true) : TransferState
     data class Failed(val message: String, val retryable: Boolean = false) : TransferState
+    /** Broadcast mode: this phone hosts the network and serves every receiver that joins. */
+    data class Broadcasting(val qr: QrPayload, val band: String, val peers: List<PeerProgress>) : TransferState
 
     enum class Step { HOTSPOT, WIFI, HANDSHAKE, RECONNECT, PREPARE }
 }
+
+enum class PeerStatus { JOINED, RUNNING, DONE, FAILED }
+
+data class PeerProgress(val session: String, val name: String, val snapshot: Snapshot?, val status: PeerStatus, val message: String = "", val incomplete: Int = 0)
 
 /**
  * Single owner of the transfer engine for the whole process. The UI observes
@@ -95,6 +102,7 @@ object TransferController {
         val app = context.applicationContext
         cancel()
         lastDirection = Direction.RECEIVE
+        lastReceiveFrom = null
         job = scope.launch {
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.HOTSPOT)
@@ -282,6 +290,139 @@ object TransferController {
         }
     }
 
+    // ---------- Broadcast (one sender, many receivers) ----------
+
+    private class PeerEntry(val name: String, val order: Int) {
+        @Volatile var stats: TransferStats? = null
+        @Volatile var status = PeerStatus.JOINED
+        @Volatile var message = ""
+        @Volatile var incomplete = 0
+        @Volatile var startedAt = 0L
+    }
+
+    fun startBroadcast(context: Context, files: List<PickedFile>) {
+        val app = context.applicationContext
+        cancel()
+        lastDirection = Direction.SEND
+        lastSend = null
+        job = scope.launch {
+            try {
+                _state.value = TransferState.Preparing(TransferState.Step.HOTSPOT)
+                val settings = Settings.get(app)
+                val h = WifiDirectHost(app).also { host = it }
+                val group = h.start(if (settings.state.value.prefer5GHz) WifiDirectHost.Band.PREFER_5GHZ else WifiDirectHost.Band.AUTO)
+                val token = (100000 + (Math.random() * 900000).toInt()).toString()
+                val qr = QrPayload(
+                    ssid = group.ssid, pass = group.passphrase, ip = group.ownerIp, port = Protocol.PORT, token = token,
+                    name = deviceName(app), freq = group.frequencyMhz, fp = Tls.identity().fingerprint, host = true,
+                )
+                _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
+                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+
+                val peers = java.util.concurrent.ConcurrentHashMap<String, PeerEntry>()
+                var order = 0
+                fun publish() {
+                    _state.value = TransferState.Broadcasting(
+                        qr, group.band,
+                        peers.values.sortedBy { it.order }.map { p ->
+                            PeerProgress(p.name, p.name, p.stats?.snapshot(), p.status, p.message, p.incomplete)
+                        },
+                    )
+                }
+                publish()
+                advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) } }
+
+                val server = BroadcastHost(
+                    port = Protocol.PORT, token = token, deviceName = deviceName(app), items = items,
+                    onJoined = { s, n -> peers[s] = PeerEntry(n, order++); publish() },
+                    onPlanned = { s, _, st -> peers[s]?.let { it.stats = st; it.status = PeerStatus.RUNNING; it.startedAt = System.currentTimeMillis() }; publish() },
+                    onDone = { s, r ->
+                        peers[s]?.let { p ->
+                            p.status = PeerStatus.DONE; p.incomplete = r.incompleteFiles.size
+                            record(app, Direction.SEND, p.name, group.band, p.stats, p.startedAt, r.incompleteFiles.size)
+                        }
+                        publish()
+                    },
+                    onFailed = { s, e -> peers[s]?.let { it.status = PeerStatus.FAILED; it.message = describe(e) }; publish() },
+                )
+                val ticker = launch {
+                    while (isActive) {
+                        delay(500)
+                        if (peers.values.any { it.status == PeerStatus.RUNNING }) publish()
+                    }
+                }
+                try { server.run() } finally { ticker.cancel() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "broadcast failed", e)
+                _state.value = TransferState.Failed(describe(e), retryable = false)
+            } finally {
+                runCatching { advertiser?.stop() }
+                advertiser = null
+                runCatching { host?.stop() }
+                host = null
+            }
+        }
+    }
+
+    private var lastReceiveFrom: QrPayload? = null
+
+    /** Broadcast mode, receiver side: join the sender's network and dial it. */
+    fun startReceivingFrom(context: Context, qr: QrPayload) {
+        val app = context.applicationContext
+        cancel()
+        lastDirection = Direction.RECEIVE
+        lastReceiveFrom = qr
+        job = scope.launch {
+            val band = bandOf(qr.freq)
+            var stats: TransferStats? = null
+            var peer = qr.name
+            var startedAt = 0L
+            try {
+                _state.value = TransferState.Preparing(TransferState.Step.WIFI)
+                val settings = Settings.get(app)
+                val c = WifiClient(app).also { client = it }
+                val network = c.connect(qr.ssid, qr.pass)
+                _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
+                val receiver = Receiver(
+                    port = Protocol.PORT, token = qr.token, deviceName = deviceName(app),
+                    store = ReceiveStore(app, resume = settings.state.value.skipExisting),
+                    onIncoming = { manifest ->
+                        val s = settings.state.value
+                        if (s.autoAcceptTrusted && manifest.senderName in s.trustedDevices) return@Receiver true
+                        pendingSender = manifest.senderName
+                        val gate = CompletableDeferred<Boolean>().also { acceptGate = it }
+                        _state.value = TransferState.AwaitingAccept(manifest)
+                        gate.await()
+                    },
+                    onPlanned = { s, p -> stats = s; peer = p; startedAt = System.currentTimeMillis() },
+                    onSessionDone = { r ->
+                        record(app, Direction.RECEIVE, peer, band, stats, startedAt, r.incompleteFiles.size)
+                        _state.value = TransferState.Finished(Direction.RECEIVE, peer, stats?.snapshot() ?: emptySnapshot(), r.incompleteFiles.size, sessionOpen = false)
+                    },
+                    streams = settings.state.value.streams,
+                    encrypted = qr.enc,
+                )
+                val ticker = launch {
+                    while (isActive) {
+                        delay(500)
+                        stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, band, it.snapshot()) }
+                    }
+                }
+                try { receiver.runClient(network, qr.ip, qr.port, qr.fp) } finally { ticker.cancel() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "receive-from failed", e)
+                stats?.let { st -> record(app, Direction.RECEIVE, peer, band, st, startedAt, st.snapshot().files.count { !it.skipped && it.done < it.size }) }
+                _state.value = TransferState.Failed(describe(e), retryable = true)
+            } finally {
+                client?.close(); client = null
+            }
+        }
+    }
+
     /** After a completed send: back to Idle for the UI, link kept so the next send skips pairing. */
     fun prepareNextSend() {
         cancelJobOnly()
@@ -292,7 +433,7 @@ object TransferController {
     fun retry(context: Context) {
         when (lastDirection) {
             Direction.SEND -> lastSend?.let { (qr, files) -> startSending(context, qr, files) }
-            Direction.RECEIVE -> startReceiving(context)
+            Direction.RECEIVE -> lastReceiveFrom?.let { startReceivingFrom(context, it) } ?: startReceiving(context)
             null -> {}
         }
     }

@@ -135,6 +135,15 @@
     <string name="pick_folder_summary">%1$d files · %2$s</string>
     <string name="pick_folders_hint">Pick a folder to send everything in it; the receiver keeps the same structure inside Download/Wamda</string>
     <string name="send_preparing">Preparing files…</string>
+    <string name="broadcast_title">Send to several devices</string>
+    <string name="broadcast_hint">On each receiving phone: Receive → «Scan sender code», then scan this code. Everyone joins this phone\'s network and receives in parallel.</string>
+    <string name="broadcast_peers">%1$d devices</string>
+    <string name="broadcast_none">Waiting for devices to join…</string>
+    <string name="broadcast_finish">Finish</string>
+    <string name="peer_joined">Joined, waiting for acceptance…</string>
+    <string name="peer_done">Done · %1$s at %2$s</string>
+    <string name="receive_scan_sender">Scan sender code</string>
+    <string name="receive_not_host">That is a receiver code. Scan it from the Send screen, or ask the sender to choose «Send to several devices».</string>
     <string name="profile_send">Profile: disk read %1$s s · network + TLS %2$s s · %3$d streams</string>
     <string name="profile_receive">Profile: network + TLS %1$s s · disk write %2$s s · %3$d streams</string>
     <string name="settings_streams">Parallel streams</string>

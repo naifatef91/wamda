@@ -135,6 +135,15 @@
     <string name="pick_folder_summary">%1$d ملف · %2$s</string>
     <string name="pick_folders_hint">اختر مجلدًا فيُرسل بكل محتوياته ويُحفظ عند المستقبل بنفس البنية داخل Download/Wamda</string>
     <string name="send_preparing">جارٍ تجهيز الملفات…</string>
+    <string name="broadcast_title">إرسال لعدة أجهزة</string>
+    <string name="broadcast_hint">على كل جهاز مستقبل: استلام ← «مسح كود المرسل» ثم امسح هذا الكود. ينضم الجميع إلى شبكة هذا الهاتف ويستلمون بالتوازي.</string>
+    <string name="broadcast_peers">%1$d أجهزة</string>
+    <string name="broadcast_none">في انتظار انضمام الأجهزة…</string>
+    <string name="broadcast_finish">إنهاء</string>
+    <string name="peer_joined">انضم، في انتظار القبول…</string>
+    <string name="peer_done">اكتمل · %1$s بمتوسط %2$s</string>
+    <string name="receive_scan_sender">مسح كود المرسل</string>
+    <string name="receive_not_host">هذا كود مستقبل. لمسحه استخدم شاشة الإرسال، أو اطلب من المرسل اختيار «إرسال لعدة أجهزة».</string>
     <string name="profile_send">تشخيص: قراءة القرص %1$s ث · الشبكة والتشفير %2$s ث · %3$d اتصالات</string>
     <string name="profile_receive">تشخيص: الشبكة وفك التشفير %1$s ث · كتابة القرص %2$s ث · %3$d اتصالات</string>
     <string name="settings_streams">عدد الاتصالات المتوازية</string>

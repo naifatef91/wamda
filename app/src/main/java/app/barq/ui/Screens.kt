@@ -103,12 +103,30 @@ fun ReceiveScreen(onHome: () -> Unit) {
     }
     BackHandler { onHome() }
 
+    // Broadcast mode: scan the SENDER's code and join its network instead of hosting our own.
+    var notHost by remember { mutableStateOf(false) }
+    val scanSender = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val payload = result.contents?.let { QrPayload.decode(it) } ?: return@rememberLauncherForActivityResult
+        if (payload.host) { notHost = false; TransferController.startReceivingFrom(ctx, payload) } else notHost = true
+    }
+    val onScanSender = {
+        scanSender.launch(ScanOptions().apply { setDesiredBarcodeFormats(ScanOptions.QR_CODE); setBeepEnabled(false); setOrientationLocked(false); setPrompt(""); setCaptureActivity(ScanActivity::class.java) })
+    }
+
     when (val s = state) {
         is TransferState.Idle, is TransferState.Preparing -> Screen {
             TopBar(stringResource(R.string.home_receive), onBack = onHome)
-            Centered { Spinner(stringResource(R.string.receive_preparing)) }
+            Centered {
+                Spinner(
+                    when ((s as? TransferState.Preparing)?.step) {
+                        TransferState.Step.WIFI -> stringResource(R.string.send_connecting_wifi)
+                        TransferState.Step.HANDSHAKE -> stringResource(R.string.send_handshake)
+                        else -> stringResource(R.string.receive_preparing)
+                    },
+                )
+            }
         }
-        is TransferState.Listening -> ReceiveQr(s.qr, s.band, onHome, dropped = s.dropped)
+        is TransferState.Listening -> ReceiveQr(s.qr, s.band, onHome, dropped = s.dropped, onScanSender = onScanSender, notHost = notHost)
         is TransferState.AwaitingAccept -> {
             ReceiveQr(null, "", onHome)
             val m = s.manifest
@@ -132,11 +150,12 @@ fun ReceiveScreen(onHome: () -> Unit) {
         is TransferState.Running -> TransferView(s.direction, s.peer, s.band, s.snapshot, onHome)
         is TransferState.Finished -> FinishedView(s, onHome, onMore = { TransferController.continueReceiving() })
         is TransferState.Failed -> FailedView(s.message, s.retryable, onHome)
+        is TransferState.Broadcasting -> Centered { Spinner("") }
     }
 }
 
 @Composable
-private fun ReceiveQr(qr: QrPayload?, band: String, onHome: () -> Unit, dropped: Boolean = false) {
+private fun ReceiveQr(qr: QrPayload?, band: String, onHome: () -> Unit, dropped: Boolean = false, onScanSender: (() -> Unit)? = null, notHost: Boolean = false) {
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
     val bmp = remember(qr) { qr?.let { qrBitmap(it.encode()) } }
@@ -182,6 +201,10 @@ private fun ReceiveQr(qr: QrPayload?, band: String, onHome: () -> Unit, dropped:
                     Box(Modifier.size(10.dp).clip(CircleShape).background(c.primary))
                     Text(stringResource(R.string.receive_waiting), color = c.onSurfaceVariant)
                 }
+            }
+            if (onScanSender != null) {
+                if (notHost) Text(stringResource(R.string.receive_not_host), color = c.error, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                BarqButton(stringResource(R.string.receive_scan_sender), onScanSender, kind = ButtonKind.Tonal, height = 52, leading = BarqIcons.Qr)
             }
             BarqButton(stringResource(R.string.transfer_cancel), onHome, kind = ButtonKind.Outlined, height = 52, modifier = Modifier.padding(bottom = 24.dp))
         }
@@ -230,7 +253,9 @@ fun SendScreen(onHome: () -> Unit) {
             onBack = { files = emptyList() },
             onScanQr = launchScan,
             onPicked = { qr = it },
+            onBroadcast = { TransferService.start(ctx); TransferController.startBroadcast(ctx, files) },
         )
+        is TransferState.Broadcasting -> BroadcastScreen(s, files.size, onFinish = onHome)
         is TransferState.Preparing -> Screen {
             TopBar(stringResource(R.string.home_send), onBack = onHome)
             Centered {

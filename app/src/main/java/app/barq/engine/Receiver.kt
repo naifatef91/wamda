@@ -101,10 +101,46 @@ class Receiver(
         }
     }
 
-    private suspend fun control(socket: Socket, inp: DataInputStream, hello: Hello) {
+    /**
+     * Broadcast mode: this phone joined the SENDER's network and dials it. One control
+     * connection plus [streams] data connections, all tagged with one session id so the
+     * host can route them; the protocol on each is identical to the hosted case.
+     */
+    suspend fun runClient(network: android.net.Network?, host: String, port: Int, fingerprint: String) = withContext(Dispatchers.IO) {
+        val session = java.util.UUID.randomUUID().toString()
+        fun dial(): Socket {
+            val s = network?.socketFactory?.createSocket() ?: Socket()
+            s.sendBufferSize = Protocol.SOCKET_BUFFER
+            s.receiveBufferSize = Protocol.SOCKET_BUFFER
+            s.connect(InetSocketAddress(host, port), 15_000)
+            s.soTimeout = 120_000
+            return if (encrypted) Tls.wrapClient(s, host, port, fingerprint) else s
+        }
+        coroutineScope {
+            dial().use { control ->
+                val out = DataOutputStream(BufferedOutputStream(control.getOutputStream(), 64 * 1024))
+                FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.CONTROL, deviceName = deviceName, session = session)))
+                val inp = DataInputStream(BufferedInputStream(control.getInputStream(), Protocol.STREAM_BUFFER))
+                control(control, inp, Hello(token = token, role = Protocol.Role.CONTROL, deviceName = "", session = session)) { n ->
+                    repeat(n) {
+                        launch {
+                            dial().use { ds ->
+                                val dout = DataOutputStream(BufferedOutputStream(ds.getOutputStream(), 4096))
+                                FrameIO.writeJson(dout, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.DATA, deviceName = deviceName, session = session)))
+                                data(DataInputStream(BufferedInputStream(ds.getInputStream(), Protocol.STREAM_BUFFER)))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun control(socket: Socket, inp: DataInputStream, hello: Hello, afterNeed: suspend (streams: Int) -> Unit = {}) {
         if (sessionActive) throw ProtocolException("another session is active")
         val out = DataOutputStream(BufferedOutputStream(socket.getOutputStream(), 64 * 1024))
         val manifest = wireJson.decodeFromString(TransferManifest.serializer(), FrameIO.readJson(inp, Protocol.Type.MANIFEST))
+        val peerName = hello.deviceName.ifBlank { manifest.senderName }
 
         val accepted = onIncoming(manifest)
         if (!accepted) {
@@ -120,12 +156,13 @@ class Receiver(
         val s = TransferStats(manifest.files, skipped.toSet(), prefilled)
         s.streams = n
         stats = s
-        onPlanned(s, hello.deviceName)
+        onPlanned(s, peerName)
 
         FrameIO.writeJson(
             out, Protocol.Type.NEED,
             wireJson.encodeToString(NeedResponse.serializer(), NeedResponse(true, n, deviceName, missing)),
         )
+        afterNeed(n)
 
         // Sender sends DONE after closing its data sockets.
         val done = wireJson.decodeFromString(DoneMessage.serializer(), FrameIO.readJson(inp, Protocol.Type.DONE))
