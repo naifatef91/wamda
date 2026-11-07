@@ -4,7 +4,7 @@
     <string name="legal_updated">آخر تحديث: 2026-11-07</string>
 
     <!-- About -->
-    <string name="about_version">الإصدار 0.1.0</string>
+    <string name="about_version">الإصدار %1$s</string>
     <string name="about_desc_title">ما هو ومضة؟</string>
     <string name="about_desc_body">ومضة تطبيق لنقل الملفات بسرعة بين الهواتف دون الحاجة إلى إنترنت. ينقل الملفات من هاتف إلى هاتف عبر شبكة Wi-Fi مباشرة أو عبر كابل USB-C، ومن الهاتف إلى الحاسوب من خلال متصفح الويب؛ وفي كل الحالات يبقى الاتصال محليًا بين الجهازين فقط. لا يحتاج التطبيق إلى حساب ولا إلى خوادم، وبلا إعلانات، وكل اتصال Wi-Fi بين الجهازين مشفّر بـ TLS 1.3.\n\nالتطبيق مفتوح المصدر، ويمكن مراجعة شيفرته كاملة على GitHub:\nhttps://github.com/naifatef91/wamda</string>
     <string name="about_never_title">ما لا نجمعه أبدًا</string>

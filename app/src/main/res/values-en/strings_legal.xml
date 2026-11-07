@@ -4,7 +4,7 @@
     <string name="legal_updated">Last updated: 2026-11-07</string>
 
     <!-- About -->
-    <string name="about_version">Version 0.1.0</string>
+    <string name="about_version">Version %1$s</string>
     <string name="about_desc_title">What is Wamda?</string>
     <string name="about_desc_body">Wamda moves files quickly between phones without an internet connection. It sends files from phone to phone over a direct Wi-Fi link or a USB-C cable, and from phone to computer through a web browser; in every case the connection stays local between the two devices. The app needs no account and no servers, shows no ads, and every Wi-Fi connection between the two devices is encrypted with TLS 1.3.\n\nWamda is open source, and the full code can be reviewed on GitHub:\nhttps://github.com/naifatef91/wamda</string>
     <string name="about_never_title">What we never collect</string>

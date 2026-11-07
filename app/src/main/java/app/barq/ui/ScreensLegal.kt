@@ -28,7 +28,7 @@ fun AboutScreen(onBack: () -> Unit) {
     LegalPage(stringResource(R.string.settings_about_app), onBack) {
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, color = c.primary)
-        Text(stringResource(R.string.about_version), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+        Text(stringResource(R.string.about_version, app.barq.BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
         LegalSection(R.string.about_desc_title, R.string.about_desc_body)
         LegalSection(R.string.about_never_title, R.string.about_never_body)
         LegalSection(R.string.about_how_title, R.string.about_how_body)
