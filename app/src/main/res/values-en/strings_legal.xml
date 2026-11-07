@@ -46,7 +46,7 @@
     <string name="terms_s6_title">6. Termination and changes</string>
     <string name="terms_s6_body">You may stop using the App at any time by uninstalling it. The license granted to you ends automatically if you breach these terms, and the warranty disclaimer and limitation of liability survive termination. We may update these terms when the App changes; the updated version is published inside the App with its last-updated date, and continuing to use the App afterwards means you accept it.</string>
     <string name="terms_s7_title">7. Governing law</string>
-    <string name="terms_s7_body">These terms are governed by and construed under the laws of [JURISDICTION], without regard to conflict-of-law rules.</string>
+    <string name="terms_s7_body">These terms are governed by and construed under the laws of the State of Palestine, without regard to conflict-of-law rules.</string>
     <string name="terms_s8_title">8. Contact</string>
     <string name="terms_s8_body">For any question about these terms, open an issue in the project repository on GitHub:\nhttps://github.com/naifatef91/wamda</string>
 </resources>
