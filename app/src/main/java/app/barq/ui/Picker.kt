@@ -44,7 +44,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +73,7 @@ private enum class Tab(val label: Int, val kind: FileKind?) {
     VIDEOS(R.string.tab_videos, FileKind.VIDEO),
     AUDIO(R.string.tab_audio, FileKind.AUDIO),
     APPS(R.string.tab_apps, FileKind.APP),
+    FOLDERS(R.string.tab_folders, null),
     DOCS(R.string.tab_docs, null),
 }
 
@@ -90,6 +93,22 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
     val askMedia = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted = it.values.any { v -> v } }
     LaunchedEffect(Unit) { if (!granted) askMedia.launch(mediaPermissions().toTypedArray()) }
 
+    // Folders (FR-11): each picked tree is walked once and selected as a unit.
+    var folders by remember { mutableStateOf<List<Pair<String, List<PickedFile>>>>(emptyList()) }
+    var walking by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val pickTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching { ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        walking = true
+        scope.launch {
+            val (name, files) = MediaRepository.walkTree(ctx, uri)
+            folders = folders.filter { it.first != name } + (name to files)
+            selected.value = selected.value + files.associateBy { it.key }
+            walking = false
+        }
+    }
+
     val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val picked = uris.mapNotNull { MediaRepository.fromDocument(ctx, it) }
         docs = (docs + picked).distinctBy { it.key }
@@ -101,16 +120,17 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
     val cache = remember { mutableStateOf<Map<Tab, List<PickedFile>>>(emptyMap()) }
     val items: List<PickedFile>? = when (tab) {
         Tab.DOCS -> docs
+        Tab.FOLDERS -> folders.flatMap { it.second }
         else -> cache.value[tab]
     }
     LaunchedEffect(tab, granted) {
-        if (tab == Tab.DOCS || cache.value.containsKey(tab) || !granted) return@LaunchedEffect
+        if (tab == Tab.DOCS || tab == Tab.FOLDERS || cache.value.containsKey(tab) || !granted) return@LaunchedEffect
         val list = when (tab) {
             Tab.IMAGES -> MediaRepository.images(ctx)
             Tab.VIDEOS -> MediaRepository.videos(ctx)
             Tab.AUDIO -> MediaRepository.audio(ctx)
             Tab.APPS -> MediaRepository.apps(ctx)
-            Tab.DOCS -> emptyList()
+            Tab.DOCS, Tab.FOLDERS -> emptyList()
         }
         cache.value = cache.value + (tab to list)
     }
@@ -125,7 +145,7 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
             Text(stringResource(R.string.send_pick), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             val visible = items.orEmpty()
             val allOn = visible.isNotEmpty() && visible.all { selected.value.containsKey(it.key) }
-            if (visible.isNotEmpty() && tab != Tab.DOCS) {
+            if (visible.isNotEmpty() && tab != Tab.DOCS && tab != Tab.FOLDERS) {
                 TextButton(onClick = {
                     selected.value = if (allOn) selected.value - visible.map { it.key }.toSet() else selected.value + visible.associateBy { it.key }
                 }) { Text(stringResource(if (allOn) R.string.pick_none else R.string.pick_all)) }
@@ -141,7 +161,11 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
                     color = if (on) c.onPrimary else c.onSurfaceVariant,
                     modifier = Modifier.clip(CircleShape).background(if (on) c.primary else c.surface)
                         .border(1.dp, if (on) c.primary else c.outline, CircleShape)
-                        .clickable { tab = t; if (t == Tab.DOCS) pickDocs.launch(arrayOf("*/*")) }
+                        .clickable {
+                            tab = t
+                            if (t == Tab.DOCS) pickDocs.launch(arrayOf("*/*"))
+                            if (t == Tab.FOLDERS && folders.isEmpty()) pickTree.launch(null)
+                        }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
@@ -149,6 +173,14 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit) {
 
         Box(Modifier.weight(1f)) {
             when {
+                tab == Tab.FOLDERS -> FolderList(
+                    folders, walking, selected.value,
+                    onToggle = { files ->
+                        val allOn = files.all { selected.value.containsKey(it.key) }
+                        selected.value = if (allOn) selected.value - files.map { it.key }.toSet() else selected.value + files.associateBy { it.key }
+                    },
+                    onAdd = { pickTree.launch(null) },
+                )
                 !granted && tab != Tab.DOCS && tab != Tab.APPS -> Empty(stringResource(R.string.pick_need_permission)) {
                     TextButton(onClick = { askMedia.launch(mediaPermissions().toTypedArray()) }) { Text(stringResource(R.string.perm_grant)) }
                 }
@@ -260,6 +292,44 @@ private fun FileList(items: List<PickedFile>, selected: Map<String, PickedFile>,
                         formatBytes(f.size) + if (f.durationMs > 0) " · " + formatDuration(f.durationMs / 1000) else "",
                         style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
                     )
+                }
+                Box(
+                    Modifier.size(24.dp).clip(CircleShape).background(if (on) c.primary else Color.Transparent).border(2.dp, if (on) c.primary else c.outline, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) { if (on) Icon(BarqIcons.Check, contentDescription = null, tint = c.onPrimary, modifier = Modifier.size(14.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderList(
+    folders: List<Pair<String, List<PickedFile>>>, walking: Boolean, selected: Map<String, PickedFile>,
+    onToggle: (List<PickedFile>) -> Unit, onAdd: () -> Unit,
+) {
+    val c = MaterialTheme.colorScheme
+    LazyVerticalGrid(columns = GridCells.Fixed(1), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item {
+            BarqButton(stringResource(R.string.pick_add_folder), onAdd, kind = ButtonKind.Tonal, height = 48, leading = BarqIcons.File)
+        }
+        if (walking) {
+            item { Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator() } }
+        }
+        if (folders.isEmpty() && !walking) {
+            item { Text(stringResource(R.string.pick_folders_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(8.dp)) }
+        }
+        items(folders, key = { it.first }) { (name, files) ->
+            val on = files.isNotEmpty() && files.all { selected.containsKey(it.key) }
+            Row(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(c.surface)
+                    .border(if (on) 1.5.dp else 1.dp, if (on) c.primary else c.outline, MaterialTheme.shapes.medium)
+                    .clickable { onToggle(files) }.padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                IconBadge(BarqIcons.File, c.primaryContainer, c.primary, size = 44)
+                Column(Modifier.weight(1f)) {
+                    Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.pick_folder_summary, files.size, formatBytes(files.sumOf { it.size })), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                 }
                 Box(
                     Modifier.size(24.dp).clip(CircleShape).background(if (on) c.primary else Color.Transparent).border(2.dp, if (on) c.primary else c.outline, CircleShape),

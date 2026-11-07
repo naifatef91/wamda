@@ -24,6 +24,10 @@ data class FileEntry(
     val size: Long,
     val mime: String? = null,
     val modified: Long = 0L,
+    /** Folder path relative to the transfer root, "/"-separated, "" for loose files (FR-11). */
+    val path: String = "",
+    /** Quick content fingerprint (see [QuickHash]); lets the receiver skip files it already has (FR-10). */
+    val fp: String? = null,
 )
 
 @Serializable

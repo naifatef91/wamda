@@ -130,6 +130,11 @@
     <string name="tab_audio">صوت</string>
     <string name="tab_apps">تطبيقات</string>
     <string name="tab_docs">ملفات</string>
+    <string name="tab_folders">مجلدات</string>
+    <string name="pick_add_folder">إضافة مجلد</string>
+    <string name="pick_folder_summary">%1$d ملف · %2$s</string>
+    <string name="pick_folders_hint">اختر مجلدًا فيُرسل بكل محتوياته ويُحفظ عند المستقبل بنفس البنية داخل Download/Wamda</string>
+    <string name="send_preparing">جارٍ تجهيز الملفات…</string>
     <string name="pick_all">تحديد الكل</string>
     <string name="pick_none">إلغاء التحديد</string>
     <string name="pick_count">%1$d ملف</string>

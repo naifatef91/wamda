@@ -28,6 +28,10 @@ data class PickedFile(
     val modifiedSec: Long = 0L,
     val durationMs: Long = 0L,
     val packageName: String? = null,
+    /** Folder path relative to the picked root ("Trip/Day 1"), "" for loose files. */
+    val relPath: String = "",
+    /** Identifies the picked folder this file came from, so the picker can select it as a unit. */
+    val folderKey: String? = null,
 ) {
     val key: String get() = uri.toString()
 }
@@ -109,6 +113,52 @@ object MediaRepository {
         return PickedFile(uri, name, size, ctx.contentResolver.getType(uri), FileKind.DOC)
     }
 
+    /** Every file under a folder picked with OpenDocumentTree, with paths relative to that folder's parent (root name included). */
+    suspend fun walkTree(ctx: Context, treeUri: Uri): Pair<String, List<PickedFile>> = withContext(Dispatchers.IO) {
+        val resolver = ctx.contentResolver
+        val rootId = android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+        val rootName = runCatching {
+            resolver.query(android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, rootId), arrayOf(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: "folder"
+        val out = ArrayList<PickedFile>()
+        val key = treeUri.toString()
+        fun visit(docId: String, rel: String, depth: Int) {
+            if (depth > 24 || out.size >= 20_000) return
+            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+            val proj = arrayOf(
+                android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID, android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE, android.provider.DocumentsContract.Document.COLUMN_SIZE,
+                android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            )
+            runCatching {
+                resolver.query(children, proj, null, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.getString(0); val name = c.getString(1) ?: continue
+                        val mime = c.getString(2); val size = if (c.isNull(3)) 0L else c.getLong(3)
+                        val mod = if (c.isNull(4)) 0L else c.getLong(4) / 1000
+                        if (mime == android.provider.DocumentsContract.Document.MIME_TYPE_DIR) {
+                            visit(id, if (rel.isEmpty()) name else "$rel/$name", depth + 1)
+                        } else if (size > 0) {
+                            val kind = when {
+                                mime?.startsWith("image/") == true -> FileKind.IMAGE
+                                mime?.startsWith("video/") == true -> FileKind.VIDEO
+                                mime?.startsWith("audio/") == true -> FileKind.AUDIO
+                                else -> FileKind.DOC
+                            }
+                            out += PickedFile(
+                                uri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, id), name = name, size = size, mime = mime,
+                                kind = kind, modifiedSec = mod, relPath = rel, folderKey = key,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        visit(rootId, rootName, 0)
+        rootName to out
+    }
+
     // ---------- thumbnails ----------
 
     private val thumbs = object : LruCache<String, Bitmap>(48 * 1024 * 1024) {
@@ -126,7 +176,7 @@ object MediaRepository {
                             val c = Canvas(b); d.setBounds(0, 0, px, px); d.draw(c)
                         }
                     }
-                    FileKind.IMAGE, FileKind.VIDEO, FileKind.AUDIO -> ctx.contentResolver.loadThumbnail(file.uri, Size(px, px), null)
+                    FileKind.IMAGE, FileKind.VIDEO, FileKind.AUDIO -> if (file.folderKey == null) ctx.contentResolver.loadThumbnail(file.uri, Size(px, px), null) else null
                     FileKind.DOC -> null
                 }
             }.onFailure { android.util.Log.w("Barq", "thumbnail failed for ${file.uri}: $it") }.getOrNull()

@@ -130,6 +130,11 @@
     <string name="tab_audio">Audio</string>
     <string name="tab_apps">Apps</string>
     <string name="tab_docs">Files</string>
+    <string name="tab_folders">Folders</string>
+    <string name="pick_add_folder">Add folder</string>
+    <string name="pick_folder_summary">%1$d files · %2$s</string>
+    <string name="pick_folders_hint">Pick a folder to send everything in it; the receiver keeps the same structure inside Download/Wamda</string>
+    <string name="send_preparing">Preparing files…</string>
     <string name="pick_all">Select all</string>
     <string name="pick_none">Clear</string>
     <string name="pick_count">%1$d files</string>

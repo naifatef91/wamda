@@ -48,7 +48,7 @@ sealed interface TransferState {
     data class Finished(val direction: Direction, val peer: String, val snapshot: Snapshot, val incomplete: Int, val sessionOpen: Boolean = true) : TransferState
     data class Failed(val message: String, val retryable: Boolean = false) : TransferState
 
-    enum class Step { HOTSPOT, WIFI, HANDSHAKE, RECONNECT }
+    enum class Step { HOTSPOT, WIFI, HANDSHAKE, RECONNECT, PREPARE }
 }
 
 /**
@@ -218,6 +218,7 @@ object TransferController {
             var lastStats: TransferStats? = null
             var ok = false
             try {
+                _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
                 val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
                 var attempt = 0
                 while (true) {
@@ -335,8 +336,7 @@ object TransferController {
 
     private fun toSendItem(context: Context, f: PickedFile, id: Int): SendItem {
         val resolver = context.contentResolver
-        val entry = FileEntry(id, f.name, f.size, f.mime, f.modifiedSec * 1000)
-        return SendItem(entry) {
+        val open: () -> ReadableFile = {
             if (f.uri.scheme == "file") {
                 val stream = FileInputStream(File(f.uri.path!!))
                 ReadableFile(stream.channel) { stream.close() }
@@ -345,6 +345,10 @@ object TransferController {
                 ReadableFile(FileInputStream(pfd.fileDescriptor).channel) { pfd.close() }
             }
         }
+        // Quick fingerprint (≤ 512 KiB read) so the receiver can skip files it already has.
+        val fp = runCatching { open().use { app.barq.engine.QuickHash.of(it.channel, f.size) } }.getOrNull()
+        val entry = FileEntry(id, f.name, f.size, f.mime, f.modifiedSec * 1000, path = f.relPath, fp = fp)
+        return SendItem(entry, open)
     }
 
     private fun bandOf(freq: Int) = when {

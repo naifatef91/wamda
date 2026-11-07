@@ -237,6 +237,7 @@ fun SendScreen(onHome: () -> Unit) {
                 Spinner(
                     when (s.step) {
                         TransferState.Step.WIFI -> stringResource(R.string.send_connecting_wifi)
+                        TransferState.Step.PREPARE -> stringResource(R.string.send_preparing)
                         TransferState.Step.RECONNECT -> stringResource(R.string.send_reconnecting, s.attempt, s.maxAttempts)
                         else -> stringResource(R.string.send_handshake)
                     },

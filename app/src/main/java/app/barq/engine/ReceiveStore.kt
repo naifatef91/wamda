@@ -48,6 +48,8 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
     fun prepare(manifest: TransferManifest): Map<Int, List<Int>> {
         val missing = LinkedHashMap<Int, List<Int>>()
         for (entry in manifest.files) {
+            // FR-10: a file with the same name, size and content fingerprint already on this phone is not transferred again.
+            if (entry.fp != null && existsOnDevice(entry)) continue
             val stateFile = File(stateDir, keyFor(entry) + ".json")
             val resumed = if (resume) tryResume(entry, stateFile) else null
             val file = resumed ?: create(entry, stateFile)
@@ -122,7 +124,7 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, sanitize(entry.name))
             put(MediaStore.MediaColumns.MIME_TYPE, entry.mime ?: "application/octet-stream")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/Wamda")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePathFor(entry.path))
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -150,9 +152,38 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
 
     private fun keyFor(entry: FileEntry): String {
         val md = MessageDigest.getInstance("SHA-1")
-        md.update("${entry.name}|${entry.size}|${entry.modified}".toByteArray())
+        md.update("${entry.path}|${entry.name}|${entry.size}|${entry.modified}".toByteArray())
         return md.digest().joinToString("") { "%02x".format(it) }
     }
+
+    /** "Download/Wamda" plus the sender's folder path, each segment sanitized (FR-11). */
+    private fun relativePathFor(path: String): String {
+        val segments = path.split('/', '\\')
+            .map { it.trim().replace(Regex("[\\\\/:*?\"<>|]"), "_") }
+            .filter { it.isNotEmpty() && it != "." && it != ".." }
+        return if (segments.isEmpty()) "Download/Wamda" else "Download/Wamda/" + segments.joinToString("/")
+    }
+
+    /** True when a file with this name, size and quick fingerprint is already in MediaStore. */
+    private fun existsOnDevice(entry: FileEntry): Boolean = runCatching {
+        val uri = MediaStore.Files.getContentUri("external")
+        resolver.query(
+            uri, arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.SIZE}=?",
+            arrayOf(sanitize(entry.name), entry.size.toString()), null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val candidate = android.content.ContentUris.withAppendedId(uri, c.getLong(0))
+                val fp = runCatching {
+                    resolver.openFileDescriptor(candidate, "r")?.use { pfd ->
+                        java.io.FileInputStream(pfd.fileDescriptor).channel.use { ch -> QuickHash.of(ch, entry.size) }
+                    }
+                }.getOrNull()
+                if (fp == entry.fp) return@runCatching true
+            }
+        }
+        false
+    }.getOrDefault(false)
 
     /** Strip path separators so a hostile manifest cannot escape Download/Wamda. */
     private fun sanitize(name: String): String {
