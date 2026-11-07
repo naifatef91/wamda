@@ -13,6 +13,11 @@
     <string name="pc_waiting_hint">Join the network below on the computer, then open the link in a browser</string>
     <string name="pc_received_title">Received from the computer: %1$d files</string>
     <string name="pc_received_hint">Saved in Download/Wamda</string>
+    <string name="pc_usb_title">Over a USB-C cable</string>
+    <string name="pc_usb_on">The computer is connected over the cable. Open this link in its browser, no Wi-Fi needed.</string>
+    <string name="pc_usb_off">No-Wi-Fi alternative: connect the phone to the computer with the cable and turn on «USB tethering» in the phone settings; the link appears here.</string>
+    <string name="pc_usb_steps">Settings → Connection &amp; sharing (or Network &amp; internet) → Hotspot &amp; tethering → USB tethering. The computer sees the phone as a network adapter with built-in drivers.</string>
+    <string name="pc_usb_open_settings">Open tethering settings</string>
     <string name="pc_use_5ghz">Use 5GHz</string>
     <string name="pc_use_5ghz_hint">Faster, but some computers cannot see 5GHz networks. Leave it off if the network does not appear.</string>
     <string name="pc_change_password">Change password</string>

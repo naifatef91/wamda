@@ -29,6 +29,8 @@ sealed class PcState {
         val sharedCount: Int,
         val uploadedCount: Int,
         val uploadedNames: List<String> = emptyList(),
+        /** URL on the USB tethering link, when the user turned tethering on. */
+        val usbUrl: String? = null,
     ) : PcState()
     data class Failed(val message: String) : PcState()
 }
@@ -58,6 +60,7 @@ object PcSession {
     private var server: HttpServer? = null
     private var statsJob: Job? = null
     private var group: WifiDirectHost.GroupInfo? = null
+    @Volatile private var usbIp: String? = null
 
     /** Starts the group and the server. No-op when already starting or ready. */
     fun start(context: Context) {
@@ -92,6 +95,14 @@ object PcSession {
                         launch { s.stats.collect { publish() } }
                         launch { _shared.collect { publish() } }
                         launch { _uploaded.collect { publish() } }
+                        // Poll the USB tethering interface; it appears when the user toggles tethering on.
+                        launch {
+                            while (true) {
+                                val ip = UsbTether.phoneIp()
+                                if (ip != usbIp) { usbIp = ip; publish() }
+                                kotlinx.coroutines.delay(2_000)
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "PC mode failed to start", e)
@@ -141,6 +152,7 @@ object PcSession {
             sharedCount = _shared.value.size,
             uploadedCount = _uploaded.value.size,
             uploadedNames = _uploaded.value,
+            usbUrl = usbIp?.let { "http://$it:${HttpServer.PORT}" },
         )
     }
 
@@ -149,5 +161,6 @@ object PcSession {
         runCatching { server?.stop() }; server = null
         runCatching { host?.stop() }; host = null
         group = null
+        usbIp = null
     }
 }

@@ -118,6 +118,7 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         PcConnectionCard(s)
+        PcUsbCard(s.usbUrl)
 
         // Step 1: join the network
         BarqCard(Modifier.fillMaxWidth()) {

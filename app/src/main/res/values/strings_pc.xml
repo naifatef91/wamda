@@ -14,6 +14,11 @@
     <string name="pc_waiting_hint">وصّل الكمبيوتر بالشبكة أدناه ثم افتح الرابط في المتصفح</string>
     <string name="pc_received_title">وصل من الكمبيوتر: %1$d ملف</string>
     <string name="pc_received_hint">محفوظة في Download/Wamda</string>
+    <string name="pc_usb_title">عبر كابل USB-C</string>
+    <string name="pc_usb_on">الكمبيوتر متصل بالكابل. افتح هذا الرابط في متصفحه، دون أي شبكة Wi-Fi.</string>
+    <string name="pc_usb_off">بديل بلا Wi-Fi: وصّل الهاتف بالكمبيوتر بالكابل وفعّل «الربط عبر USB» من إعدادات الهاتف، فيظهر الرابط هنا.</string>
+    <string name="pc_usb_steps">الإعدادات ← الاتصال والمشاركة (أو الشبكة والإنترنت) ← نقطة الاتصال والربط ← الربط عبر USB. الكمبيوتر يتعرف على الهاتف كبطاقة شبكة دون تعريفات إضافية.</string>
+    <string name="pc_usb_open_settings">فتح إعدادات الربط</string>
     <string name="pc_use_5ghz">استخدام 5GHz</string>
     <string name="pc_use_5ghz_hint">أسرع، لكن بعض الحواسيب لا ترى شبكات 5GHz. إن لم تظهر الشبكة أبقه مطفأً.</string>
     <string name="pc_change_password">تغيير كلمة المرور</string>

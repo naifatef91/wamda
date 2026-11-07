@@ -71,6 +71,44 @@ fun PcReceivedList(names: List<String>) {
     }
 }
 
+/** USB-C to the computer: same page over USB tethering; shows the link when tethering is on, else how to turn it on. */
+@Composable
+fun PcUsbCard(usbUrl: String?) {
+    val ctx = LocalContext.current
+    val c = MaterialTheme.colorScheme
+    val x = app.barq.ui.theme.LocalBarqExtras.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    BarqCard(Modifier.fillMaxWidth(), tint = if (usbUrl != null) x.okSoft else null) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconBadge(BarqIcons.Next, if (usbUrl != null) x.ok else c.primaryContainer, if (usbUrl != null) c.surface else c.primary)
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.pc_usb_title), style = MaterialTheme.typography.titleMedium, color = if (usbUrl != null) x.ok else c.onSurface)
+                    Text(
+                        stringResource(if (usbUrl != null) R.string.pc_usb_on else R.string.pc_usb_off),
+                        style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
+                    )
+                }
+            }
+            if (usbUrl != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(usbUrl, style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, color = c.primary, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(usbUrl)) }) { Text(stringResource(R.string.pc_copy)) }
+                }
+            } else {
+                Text(stringResource(R.string.pc_usb_steps), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                TextButton(onClick = {
+                    val intents = listOf(
+                        android.content.Intent("android.settings.TETHER_SETTINGS"),
+                        android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS),
+                    )
+                    for (i in intents) { if (runCatching { ctx.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) break }
+                }) { Text(stringResource(R.string.pc_usb_open_settings)) }
+            }
+        }
+    }
+}
+
 /** Band chip, 5GHz switch and the password editor for PC mode; any change restarts the group. */
 @Composable
 fun PcOptions(band: String) {
