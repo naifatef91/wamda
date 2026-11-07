@@ -62,6 +62,12 @@ class WifiDirectHost(context: Context) {
 
     suspend fun stop() {
         removeGroup()
+        // Wait until the framework reports no group, so a following STA join does not race it.
+        repeat(20) {
+            val g = requestGroup()
+            if (g == null) return
+            delay(150)
+        }
     }
 
     @SuppressLint("MissingPermission")

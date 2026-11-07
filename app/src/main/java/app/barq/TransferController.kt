@@ -443,6 +443,10 @@ object TransferController {
     /** Broadcast mode, receiver side: join the sender's network and dial it. */
     fun startReceivingFrom(context: Context, qr: QrPayload) {
         val app = context.applicationContext
+        // Our own Wi-Fi Direct group (from the Receive screen) must be fully gone before we can
+        // join someone else's network: cancel() stops it asynchronously, so take it over here.
+        val oldHost = host
+        host = null
         cancel()
         lastDirection = Direction.RECEIVE
         lastReceiveFrom = qr
@@ -453,9 +457,15 @@ object TransferController {
             var startedAt = 0L
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.WIFI)
+                if (oldHost != null) {
+                    runCatching { oldHost.stop() }
+                    delay(1_500)
+                    android.util.Log.i(TAG, "own group removed; joining ${qr.ssid}")
+                }
                 val settings = Settings.get(app)
                 val c = WifiClient(app).also { client = it }
                 val network = c.connect(qr.ssid, qr.pass)
+                android.util.Log.i(TAG, "joined ${qr.ssid}; dialing ${qr.ip}:${qr.port}")
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = qr.token, deviceName = deviceName(app),
