@@ -6,3 +6,8 @@ local.properties
 .kotlin/
 captures/
 .cxx/
+
+# Play upload key (never commit)
+keystore/
+*.jks
+*.keystore
