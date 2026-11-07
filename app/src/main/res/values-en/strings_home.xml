@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home: live transfer strip shown while a transfer is running -->
+    <string name="live_sending_to">Sending to %1$s</string>
+    <string name="live_receiving_from">Receiving from %1$s</string>
+    <string name="live_remaining">%1$s left</string>
+    <string name="live_speed">Speed</string>
+    <string name="live_open">Open transfer</string>
+    <string name="home_hello">Hi, %1$s</string>
+    <string name="home_headline">Send any file, in a flash.</string>
+    <string name="home_secure">Secure link</string>
+    <string name="home_ready">Ready to transfer</string>
+    <string name="home_ready_sub">Direct Wi-Fi link, no internet</string>
+    <string name="home_nearby_none">No devices nearby yet</string>
+    <string name="home_nearby_count">%1$d devices nearby and ready</string>
+    <string name="home_send_hint2">Pick and share instantly</string>
+    <string name="home_receive_hint2">Show the pairing code</string>
+    <string name="home_activity">Recent activity</string>
+    <string name="home_transfers">Transfers</string>
+    <string name="home_view_all">View all</string>
+</resources>

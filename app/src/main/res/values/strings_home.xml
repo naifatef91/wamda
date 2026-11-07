@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home: live transfer strip shown while a transfer is running -->
+    <string name="live_sending_to">إرسال إلى %1$s</string>
+    <string name="live_receiving_from">استلام من %1$s</string>
+    <string name="live_remaining">المتبقي %1$s</string>
+    <string name="live_speed">السرعة</string>
+    <string name="live_open">فتح شاشة النقل</string>
+    <string name="home_hello">مرحبًا، %1$s</string>
+    <string name="home_headline">أرسل أي ملف، في ومضة.</string>
+    <string name="home_secure">اتصال آمن</string>
+    <string name="home_ready">جاهز للنقل</string>
+    <string name="home_ready_sub">اتصال مباشر عبر Wi-Fi، دون إنترنت</string>
+    <string name="home_nearby_none">لا أجهزة قريبة الآن</string>
+    <string name="home_nearby_count">%1$d أجهزة قريبة وجاهزة</string>
+    <string name="home_send_hint2">اختر وشارك فورًا</string>
+    <string name="home_receive_hint2">اعرض رمز الاتصال</string>
+    <string name="home_activity">آخر النشاطات</string>
+    <string name="home_transfers">عمليات النقل</string>
+    <string name="home_view_all">عرض الكل</string>
+</resources>

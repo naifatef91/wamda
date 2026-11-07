@@ -1,0 +1,398 @@
+<title>مواصفات تطبيق ومضة</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column, RTL, sticky table of contents on wide screens; tables scroll in their own boxes */
+:root {
+  --bg: #F3F5F7;
+  --paper: #FFFFFF;
+  --ink: #15212C;
+  --muted: #5B6875;
+  --line: #D9DFE5;
+  --accent: #1D56C9;
+  --accent-soft: #E3EBFA;
+  --warn: #A55A00;
+  --warn-soft: #FBEFDD;
+  --ok: #1E7A4C;
+  --ok-soft: #E1F2E8;
+  --f-display: "Readex Pro", "IBM Plex Sans Arabic", Tahoma, sans-serif;
+  --f-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F151B; --paper: #161E26; --ink: #E6ECF1; --muted: #98A6B3; --line: #2A3540;
+    --accent: #7FA6F5; --accent-soft: #1C2A44; --warn: #F0B260; --warn-soft: #3A2B16;
+    --ok: #6FCF9B; --ok-soft: #173326; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F151B; --paper: #161E26; --ink: #E6ECF1; --muted: #98A6B3; --line: #2A3540;
+  --accent: #7FA6F5; --accent-soft: #1C2A44; --warn: #F0B260; --warn-soft: #3A2B16;
+  --ok: #6FCF9B; --ok-soft: #173326; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body);
+  font-size: 16px; line-height: 1.85;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; align-items: start; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 24px; } nav.toc { position: static !important; } }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); font-size: 14px; }
+nav.toc .lbl { font-family: var(--f-display); font-size: 12px; letter-spacing: .04em; color: var(--muted); margin-bottom: 8px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+nav.toc a { color: var(--muted); text-decoration: none; display: block; padding: 3px 10px; border-inline-start: 2px solid var(--line); }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+main { min-width: 0; }
+header.doc { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 8px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 500; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(30px, 5vw, 42px); line-height: 1.3; margin: 8px 0 12px; text-wrap: balance; }
+h1 .tag { font-size: .45em; color: var(--accent); font-weight: 500; vertical-align: middle; border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; margin-inline-start: 8px; }
+.lede { font-size: 18px; color: var(--muted); max-width: 62ch; margin: 0 0 16px; }
+section { padding-top: 36px; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 24px; margin: 0 0 12px; text-wrap: balance; display: flex; gap: 12px; align-items: baseline; }
+h2 .n { font-family: var(--f-mono); font-size: 14px; color: var(--accent); font-weight: 500; }
+h3 { font-family: var(--f-display); font-weight: 500; font-size: 18px; margin: 24px 0 8px; }
+p, li { max-width: 68ch; }
+ul, ol { padding-inline-start: 22px; margin: 8px 0; }
+li { margin-bottom: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; direction: ltr; unicode-bidi: isolate; }
+code { background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; }
+.tbl { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+th, td { text-align: start; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--f-display); font-weight: 500; font-size: 13px; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.id { font-family: var(--f-mono); color: var(--accent); white-space: nowrap; font-size: 13px; }
+.pill { display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px; white-space: nowrap; font-weight: 500; }
+.p-mvp { background: var(--ok-soft); color: var(--ok); }
+.p-11 { background: var(--accent-soft); color: var(--accent); }
+.p-2 { background: var(--warn-soft); color: var(--warn); }
+.note { border-inline-start: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; max-width: 72ch; }
+.note b { color: var(--warn); }
+.stack { display: grid; gap: 6px; margin: 16px 0; max-width: 640px; }
+.layer { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; font-size: 14.5px; }
+.layer .k { font-family: var(--f-display); font-weight: 500; }
+.layer .v { color: var(--muted); }
+.layer.core { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 480px) { .layer { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+pre.frame { direction: ltr; text-align: left; font-family: var(--f-mono); font-size: 13px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; line-height: 1.6; margin: 12px 0; }
+.phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+@media (max-width: 760px) { .phases { grid-template-columns: minmax(0, 1fr); } }
+.phase { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.phase h3 { margin-top: 6px; }
+.phase ul { font-size: 14.5px; padding-inline-start: 18px; }
+footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap" dir="rtl" lang="ar">
+<nav class="toc" aria-label="المحتويات">
+  <div class="lbl">المحتويات</div>
+  <ol>
+    <li><a href="#overview">نظرة عامة</a></li>
+    <li><a href="#users">المستخدمون والسيناريوهات</a></li>
+    <li><a href="#functional">المتطلبات الوظيفية</a></li>
+    <li><a href="#perf">أهداف الأداء</a></li>
+    <li><a href="#arch">البنية التقنية</a></li>
+    <li><a href="#channels">اختيار قناة الاتصال</a></li>
+    <li><a href="#protocol">بروتوكول النقل</a></li>
+    <li><a href="#security">الأمان والخصوصية</a></li>
+    <li><a href="#permissions">صلاحيات أندرويد</a></li>
+    <li><a href="#ui">الشاشات</a></li>
+    <li><a href="#releases">خطة الإصدارات</a></li>
+    <li><a href="#testing">القياس والاختبار</a></li>
+    <li><a href="#risks">المخاطر</a></li>
+    <li><a href="#open">أسئلة مفتوحة</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="doc">
+  <div class="meta"><span>وثيقة مواصفات المنتج</span><span>الإصدار <b class="mono">0.2</b></span><span>الحالة <b>مسودة</b></span><span>التاريخ <b class="mono">2026-11-06</b></span></div>
+  <h1>تطبيق ومضة</h1>
+  <p class="lede">تطبيق لنقل الملفات بين الهواتف دون إنترنت، هدفه أن يكون أسرع بشكل ملموس من SHAREit و ShareMe، بلا إعلانات، وبتجربة اتصال لا تتجاوز بضع ثوانٍ.</p>
+</header>
+
+<section id="overview">
+  <h2><span class="n">01</span>نظرة عامة</h2>
+  <h3>المشكلة</h3>
+  <ul>
+    <li>التطبيقات الحالية تعمل غالبًا على نطاق 2.4GHz أو بإعدادات افتراضية، فتصل السرعة الفعلية إلى 5–15 MB/s فقط.</li>
+    <li>نقل آلاف الصور الصغيرة بطيء جدًا لأن كل ملف يُعامل كعملية منفصلة.</li>
+    <li>انقطاع النقل يعني البدء من الصفر في كثير من الحالات.</li>
+    <li>الإعلانات والصلاحيات الزائدة أفقدت المستخدمين الثقة في أشهر التطبيقات.</li>
+  </ul>
+  <h3>الأهداف</h3>
+  <ul>
+    <li>سرعة نقل فعلية لا تقل عن <b>40 MB/s</b> بين هاتفين متوسطين حديثين، وضعف ذلك على أجهزة Wi-Fi 6.</li>
+    <li>زمن من فتح التطبيق إلى أول بايت أقل من <b>5 ثوانٍ</b>.</li>
+    <li>استكمال تلقائي لأي نقل منقطع دون فقدان أكثر من جزء واحد.</li>
+    <li>تشفير كامل من طرف إلى طرف بشكل افتراضي.</li>
+  </ul>
+  <h3>خارج النطاق</h3>
+  <ul>
+    <li>النقل عبر الإنترنت أو التخزين السحابي.</li>
+    <li>المحادثة والميزات الاجتماعية والمتجر الداخلي.</li>
+    <li>الإعلانات بكل أشكالها.</li>
+  </ul>
+</section>
+
+<section id="users">
+  <h2><span class="n">02</span>المستخدمون والسيناريوهات</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>السيناريو</th><th>الحجم النموذجي</th><th>ما يهم المستخدم</th></tr></thead>
+    <tbody>
+      <tr><td>إرسال فيديو أو فيلم لصديق</td><td class="num">1–8 GB</td><td>السرعة القصوى للملف الكبير</td></tr>
+      <tr><td>مشاركة صور مناسبة أو رحلة</td><td class="num">300–3,000 ملف</td><td>سرعة الملفات الصغيرة، والاختيار السهل</td></tr>
+      <tr><td>الانتقال إلى هاتف جديد</td><td class="num">50–250 GB</td><td>الموثوقية، والاستكمال، وعدم تكرار الملفات</td></tr>
+      <tr><td>إرسال تطبيق (APK)</td><td class="num">50–500 MB</td><td>العمل دون إنترنت</td></tr>
+      <tr><td>نقل من الهاتف إلى الكمبيوتر</td><td class="num">متغير</td><td>عدم الحاجة لتثبيت برنامج على الكمبيوتر</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="functional">
+  <h2><span class="n">03</span>المتطلبات الوظيفية</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>المعرّف</th><th>المتطلب</th><th>الإصدار</th></tr></thead>
+    <tbody>
+      <tr><td class="id">FR-01</td><td>اكتشاف الأجهزة القريبة عبر Bluetooth LE وعرضها باسم الجهاز وصورته الرمزية.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-02</td><td>الاتصال بمسح كود QR يعرضه المستقبل، كبديل دائم عن الاكتشاف التلقائي.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-03</td><td>اختيار الملفات حسب النوع: صور، فيديو، صوت، مستندات، تطبيقات، ومستعرض ملفات كامل.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-04</td><td>بدء الإرسال فور الاتصال، مع إمكانية إضافة ملفات أثناء النقل.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-05</td><td>عرض التقدم لكل ملف وللمجموع، والسرعة اللحظية، والوقت المتبقي.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-06</td><td>استكمال النقل تلقائيًا بعد الانقطاع من آخر جزء سليم.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-07</td><td>النقل في الخلفية عبر خدمة أمامية (Foreground service) مع إشعار يعرض التقدم.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-08</td><td>سجل للعمليات السابقة مع فتح الملفات المستلمة مباشرة.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-09</td><td>تشخيص البطء: رسالة توضح السبب مثل نطاق 2.4GHz أو بُعد المسافة أو بطء التخزين.</td><td><span class="pill p-mvp">MVP</span></td></tr>
+      <tr><td class="id">FR-10</td><td>تخطي الملفات الموجودة مسبقًا عند المستقبل بمقارنة البصمة.</td><td><span class="pill p-11">1.1</span></td></tr>
+      <tr><td class="id">FR-11</td><td>إرسال المجلدات مع الحفاظ على بنيتها.</td><td><span class="pill p-11">1.1</span></td></tr>
+      <tr><td class="id">FR-12</td><td>الإرسال إلى عدة مستقبلين في نفس الوقت.</td><td><span class="pill p-11">1.1</span></td></tr>
+      <tr><td class="id">FR-13</td><td>النقل إلى الكمبيوتر من المتصفح بمسح QR، دون تثبيت برنامج.</td><td><span class="pill p-11">1.1</span></td></tr>
+      <tr><td class="id">FR-14</td><td>دعم Wi-Fi Aware على الأجهزة التي تدعمه.</td><td><span class="pill p-11">1.1</span></td></tr>
+      <tr><td class="id">FR-15</td><td>النقل بين أندرويد و iPhone.</td><td><span class="pill p-2">2.0</span></td></tr>
+      <tr><td class="id">FR-16</td><td>النقل بكابل USB-C بين هاتفين.</td><td><span class="pill p-2">2.0</span></td></tr>
+      <tr><td class="id">FR-17</td><td>نسخ الهاتف بالكامل: الوسائط، جهات الاتصال، التطبيقات.</td><td><span class="pill p-2">2.0</span></td></tr>
+      <tr><td class="id">FR-18</td><td>الإرسال عبر مسارين معًا (Wi-Fi + كابل) وجمع سرعتهما.</td><td><span class="pill p-2">2.0</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="perf">
+  <h2><span class="n">04</span>أهداف الأداء</h2>
+  <p>تُقاس السرعة كمعدل فعلي من أول بايت إلى آخر بايت مكتوب على قرص المستقبل، وليس سرعة الرابط النظرية.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>القناة</th><th>الهدف الأدنى</th><th>الهدف الطموح</th><th>العامل المحدِّد</th></tr></thead>
+    <tbody>
+      <tr><td>Wi-Fi Direct على 5GHz، قناة 80MHz</td><td class="num">40 MB/s</td><td class="num">60 MB/s</td><td>جودة شريحة Wi-Fi والمسافة</td></tr>
+      <tr><td>Wi-Fi 6 بقناة 160MHz</td><td class="num">90 MB/s</td><td class="num">150 MB/s</td><td>دعم الجهازين معًا</td></tr>
+      <tr><td>كابل USB 2.0</td><td class="num">30 MB/s</td><td class="num">40 MB/s</td><td>المنفذ نفسه</td></tr>
+      <tr><td>كابل USB 3.x</td><td class="num">200 MB/s</td><td class="num">400 MB/s</td><td>سرعة الكتابة على التخزين</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tbl"><table>
+    <thead><tr><th>المقياس</th><th>الهدف</th></tr></thead>
+    <tbody>
+      <tr><td>زمن الاتصال من مسح QR إلى أول بايت</td><td class="num">&lt; 5 s</td></tr>
+      <tr><td>سرعة الملفات الصغيرة (مثلًا 5,000 صورة × 3 MB) مقارنة بملف واحد كبير</td><td class="num">≥ 85%</td></tr>
+      <tr><td>أثر التشفير على السرعة</td><td class="num">&lt; 5%</td></tr>
+      <tr><td>البيانات المفقودة عند الانقطاع</td><td class="num">≤ 1 جزء (4 MiB)</td></tr>
+      <tr><td>حجم التطبيق</td><td class="num">&lt; 15 MB</td></tr>
+      <tr><td>استهلاك البطارية لنقل 10 GB</td><td class="num">&lt; 6%</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="arch">
+  <h2><span class="n">05</span>البنية التقنية</h2>
+  <p>محرك النقل مكتوب بلغة واحدة مشتركة ويُستدعى من كل منصة، أما ما يخص كل نظام (الشبكة، الصلاحيات، الواجهة) فيُكتب بلغته الأصلية.</p>
+  <div class="stack">
+    <div class="layer"><span class="k">الواجهة</span><span class="v">Kotlin + Jetpack Compose على أندرويد، و SwiftUI على iOS لاحقًا</span></div>
+    <div class="layer"><span class="k">طبقة المنصة</span><span class="v">الاكتشاف عبر BLE، إنشاء رابط Wi-Fi Direct أو Aware أو USB، الوصول للملفات عبر MediaStore و SAF</span></div>
+    <div class="layer core"><span class="k">محرك النقل</span><span class="v">Rust: الجلسة، التشفير، التقسيم، الاتصالات المتوازية، الاستكمال، البصمات</span></div>
+    <div class="layer"><span class="k">طبقة الإدخال والإخراج</span><span class="v">قراءة وكتابة متوازية بمواضع محددة، حجز مسبق لمساحة الملف، مخازن مؤقتة دوّارة</span></div>
+  </div>
+  <h3>لماذا Rust للمحرك</h3>
+  <ul>
+    <li>أداء قريب من C مع أمان الذاكرة، وهذا مهم لكود يعالج بيانات من جهاز آخر.</li>
+    <li>نفس الكود يعمل على أندرويد و iOS وويندوز وماك، فيبقى البروتوكول متطابقًا.</li>
+    <li>الربط مع Kotlin و Swift يتم عبر UniFFI.</li>
+  </ul>
+  <p>الحد الأدنى المقترح: <b>Android 10</b> (<code>API 29</code>)، لأنه أول إصدار يسمح بفرض نطاق 5GHz لمجموعة Wi-Fi Direct.</p>
+</section>
+
+<section id="channels">
+  <h2><span class="n">06</span>اختيار قناة الاتصال</h2>
+  <p>يتبادل الجهازان قدراتهما عبر BLE أو كود QR، ثم يختار التطبيق أسرع قناة مشتركة حسب الترتيب التالي:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>الأولوية</th><th>القناة</th><th>الشرط</th><th>طريقة التنفيذ</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>كابل USB-C</td><td>الكابل موصول</td><td>Android Open Accessory: أحد الهاتفين يعمل كمضيف</td></tr>
+      <tr><td class="num">2</td><td>Wi-Fi Aware</td><td>الجهازان يدعمانه</td><td><code>WifiAwareNetworkSpecifier</code></td></tr>
+      <tr><td class="num">3</td><td>Wi-Fi Direct على 5GHz</td><td>الجهازان يدعمان 5GHz</td><td><code>setGroupOperatingBand(GROUP_OWNER_BAND_5GHZ)</code></td></tr>
+      <tr><td class="num">4</td><td>Wi-Fi Direct على 2.4GHz</td><td>دائمًا</td><td>مع تنبيه المستخدم بأن السرعة محدودة</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><b>تنبيه:</b> إذا كان أحد الهاتفين متصلًا بشبكة Wi-Fi على 2.4GHz، فقد يُجبر Wi-Fi Direct على نفس القناة. يجب اكتشاف هذه الحالة وعرض خيار قطع الاتصال المؤقت بالشبكة.</div>
+  <h3>الربط مع iPhone (الإصدار 2.0)</h3>
+  <p>ينشئ هاتف الأندرويد مجموعة Wi-Fi Direct، ويعرض كود QR يحمل اسم الشبكة وكلمة مرورها. ينضم الآيفون إليها كشبكة Wi-Fi عادية عبر <code>NEHotspotConfiguration</code>، ثم يعمل نفس البروتوكول. يُدرس أيضًا إطار Wi-Fi Aware الذي أضافته Apple حديثًا في iOS.</p>
+</section>
+
+<section id="protocol">
+  <h2><span class="n">07</span>بروتوكول النقل</h2>
+  <h3>مراحل الجلسة</h3>
+  <ol>
+    <li><b>الاكتشاف:</b> بث BLE يحمل معرّف الخدمة واسم الجهاز وقدراته المختصرة.</li>
+    <li><b>إنشاء الرابط:</b> المستقبل ينشئ مجموعة Wi-Fi Direct ويرسل بياناتها عبر BLE أو QR.</li>
+    <li><b>المصافحة:</b> TLS 1.3 بشهادة ذاتية، وبصمتها مضمّنة في QR أو تُطابق برمز من 6 أرقام.</li>
+    <li><b>قائمة الملفات (Manifest):</b> المرسل يرسل الأسماء والأحجام وتواريخ التعديل.</li>
+    <li><b>رد المستقبل:</b> يحدد الملفات المطلوبة، والملفات الموجودة مسبقًا، والأجزاء المكتملة من نقل سابق.</li>
+    <li><b>نقل البيانات:</b> عبر عدة اتصالات متوازية.</li>
+    <li><b>الإغلاق:</b> تأكيد البصمة النهائية لكل ملف، ثم إضافته إلى MediaStore.</li>
+  </ol>
+  <h3>تقسيم البيانات</h3>
+  <ul>
+    <li>الملفات الكبيرة تُقسم إلى أجزاء بحجم <code>4 MiB</code>، ولكل جزء بصمة <code>BLAKE3</code>.</li>
+    <li>الملفات الأصغر من <code>1 MiB</code> تُجمع في حزم بحجم <code>4 MiB</code> لتقليل التكلفة الإضافية.</li>
+    <li>عدد الاتصالات يبدأ بـ 4 ويتكيف بين 2 و 8 حسب السرعة المقاسة كل ثانيتين.</li>
+    <li>مخازن الإرسال والاستقبال في نظام التشغيل تُرفع إلى <code>4 MiB</code> لكل اتصال.</li>
+  </ul>
+  <h3>بنية الإطار</h3>
+<pre class="frame">+---------+---------+----------+-----------+----------+-------------+
+| type 1B | flags 1B| file 4B  | offset 8B | len 4B   | payload ... |
++---------+---------+----------+-----------+----------+-------------+
+type : DATA | BUNDLE | ACK | MANIFEST | CANCEL | PING
+flags: LAST_CHUNK | COMPRESSED</pre>
+  <h3>الضغط</h3>
+  <p>لا ضغط للصور والفيديو والصوت والملفات المضغوطة أصلًا. باقي الملفات تُختبر بعينة صغيرة، وتُضغط بـ <code>zstd</code> بمستوى 1 فقط إذا وفّر الضغط أكثر من 10%.</p>
+  <h3>الكتابة عند المستقبل</h3>
+  <ul>
+    <li>حجز مساحة الملف كاملة قبل البدء لتجنب التجزئة ومعرفة نقص المساحة مبكرًا.</li>
+    <li>كتابة كل جزء في موضعه مباشرة، فلا يلزم وصول الأجزاء بالترتيب.</li>
+    <li>ملف حالة صغير بجانب كل ملف غير مكتمل يحفظ الأجزاء المستلمة، ويُستخدم للاستكمال.</li>
+  </ul>
+</section>
+
+<section id="security">
+  <h2><span class="n">08</span>الأمان والخصوصية</h2>
+  <ul>
+    <li>كل جلسة مشفرة بـ TLS 1.3 باستخدام <code>AES-256-GCM</code>، المسرَّع عتاديًا في معالجات ARMv8.</li>
+    <li>شهادة المستقبل ذاتية التوقيع بمفتاح <code>EC P-256</code> يُولَّد برمجيًا عند تشغيل التطبيق ولا يُحفظ على القرص (مفتاح مؤقت)، وبصمتها <code>SHA-256</code> مضمّنة في كود QR، فيرفض المرسل أي جهاز آخر ينتحل الشبكة.</li>
+    <li>لا يُقبل أي ملف قبل موافقة المستقبل، إلا مع الأجهزة التي حفظها كأجهزة موثوقة.</li>
+    <li>مسارات الملفات المستلمة تُنظف لمنع الكتابة خارج مجلد الاستقبال (Path traversal).</li>
+    <li>لا حسابات ولا خوادم ولا إنترنت. الملفات لا تغادر الجهازين أبدًا.</li>
+    <li>التحليلات اختيارية، معطلة افتراضيًا، ولا تحتوي أسماء ملفات أو بيانات شخصية.</li>
+  </ul>
+</section>
+
+<section id="permissions">
+  <h2><span class="n">09</span>صلاحيات أندرويد</h2>
+  <p>تُطلب كل صلاحية عند الحاجة إليها فقط، مع شرح سببها.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>الصلاحية</th><th>السبب</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">NEARBY_WIFI_DEVICES</td><td>إنشاء رابط Wi-Fi Direct و Aware (أندرويد 13+)</td></tr>
+      <tr><td class="mono">BLUETOOTH_SCAN / ADVERTISE / CONNECT</td><td>اكتشاف الأجهزة القريبة</td></tr>
+      <tr><td class="mono">ACCESS_FINE_LOCATION</td><td>مطلوبة لـ Wi-Fi Direct على أندرويد 10–12 فقط</td></tr>
+      <tr><td class="mono">READ_MEDIA_IMAGES / VIDEO / AUDIO</td><td>اختيار الوسائط للإرسال</td></tr>
+      <tr><td class="mono">CAMERA</td><td>مسح كود QR</td></tr>
+      <tr><td class="mono">FOREGROUND_SERVICE_DATA_SYNC</td><td>استمرار النقل في الخلفية</td></tr>
+      <tr><td class="mono">POST_NOTIFICATIONS</td><td>إشعار التقدم</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="ui">
+  <h2><span class="n">10</span>الشاشات</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>الشاشة</th><th>المحتوى</th></tr></thead>
+    <tbody>
+      <tr><td>الرئيسية</td><td>زران كبيران: إرسال واستلام. أسفلهما آخر العمليات.</td></tr>
+      <tr><td>اختيار الملفات</td><td>تبويبات حسب النوع، تحديد متعدد بالسحب، شريط سفلي بعدد الملفات وحجمها.</td></tr>
+      <tr><td>الاستلام</td><td>كود QR كبير، واسم الجهاز، ومؤشر انتظار.</td></tr>
+      <tr><td>البحث عن جهاز</td><td>الأجهزة القريبة كفقاعات، وزر لمسح QR.</td></tr>
+      <tr><td>النقل</td><td>السرعة اللحظية بخط كبير، رسم بياني صغير للسرعة، القناة المستخدمة، قائمة الملفات بتقدم كل منها.</td></tr>
+      <tr><td>الاكتمال</td><td>الحجم والوقت ومتوسط السرعة، وزر فتح الملفات.</td></tr>
+      <tr><td>السجل</td><td>العمليات السابقة مع إمكانية إعادة الإرسال.</td></tr>
+      <tr><td>الإعدادات</td><td>اسم الجهاز، مجلد الاستلام، الأجهزة الموثوقة، اللغة.</td></tr>
+    </tbody>
+  </table></div>
+  <p>الواجهة تدعم العربية والإنجليزية من البداية، مع دعم كامل للاتجاه من اليمين إلى اليسار.</p>
+</section>
+
+<section id="releases">
+  <h2><span class="n">11</span>خطة الإصدارات</h2>
+  <div class="phases">
+    <div class="phase"><span class="pill p-mvp">MVP</span><h3>أندرويد إلى أندرويد</h3>
+      <ul><li>Wi-Fi Direct مع فرض 5GHz</li><li>الاكتشاف عبر BLE و QR</li><li>الاتصالات المتوازية وحزم الملفات الصغيرة</li><li>الاستكمال بعد الانقطاع</li><li>التشفير</li><li>شاشة السرعة والتشخيص</li></ul></div>
+    <div class="phase"><span class="pill p-11">1.1</span><h3>التوسع</h3>
+      <ul><li>Wi-Fi Aware</li><li>تخطي الملفات المكررة</li><li>المجلدات</li><li>عدة مستقبلين</li><li>الكمبيوتر عبر المتصفح</li></ul></div>
+    <div class="phase"><span class="pill p-2">2.0</span><h3>المنصات والكابل</h3>
+      <ul><li>تطبيق iPhone</li><li>النقل بكابل USB-C</li><li>نسخ الهاتف بالكامل</li><li>الإرسال عبر مسارين معًا</li></ul></div>
+  </div>
+  <p><b>شرط الانتقال من MVP إلى الإطلاق العام:</b> أن يتفوق التطبيق على SHAREit بنسبة 50% على الأقل في متوسط السرعة على 5 أزواج من الأجهزة المختلفة.</p>
+</section>
+
+<section id="testing">
+  <h2><span class="n">12</span>القياس والاختبار</h2>
+  <h3>مجموعات بيانات ثابتة للقياس</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>المجموعة</th><th>المحتوى</th><th>الحجم</th></tr></thead>
+    <tbody>
+      <tr><td>A: ملف كبير</td><td>فيديو واحد</td><td class="num">4 GB</td></tr>
+      <tr><td>B: صور</td><td>5,000 صورة JPEG</td><td class="num">≈ 15 GB</td></tr>
+      <tr><td>C: مختلط</td><td>مستندات وملفات صوت وتطبيقات</td><td class="num">≈ 3 GB</td></tr>
+      <tr><td>D: ملفات صغيرة جدًا</td><td>20,000 ملف أصغر من 50 KB</td><td class="num">≈ 500 MB</td></tr>
+    </tbody>
+  </table></div>
+  <h3>أزواج الأجهزة</h3>
+  <ul>
+    <li>هاتفان رائدان حديثان يدعمان Wi-Fi 6.</li>
+    <li>هاتفان من الفئة المتوسطة (Xiaomi و Samsung A).</li>
+    <li>هاتف قديم بأندرويد 10 مع هاتف حديث.</li>
+  </ul>
+  <h3>حالات الأعطال</h3>
+  <ul>
+    <li>إطفاء Wi-Fi أثناء النقل، والابتعاد خارج النطاق، وإغلاق التطبيق، وإعادة تشغيل الهاتف.</li>
+    <li>امتلاء مساحة المستقبل أثناء النقل.</li>
+    <li>أسماء ملفات عربية وطويلة وفيها رموز خاصة.</li>
+  </ul>
+  <p>كل قياس يُعاد 3 مرات ويُسجل المتوسط، مع نفس الاختبار على SHAREit و ShareMe و Quick Share للمقارنة.</p>
+</section>
+
+<section id="risks">
+  <h2><span class="n">13</span>المخاطر</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>الخطر</th><th>الأثر</th><th>المعالجة</th></tr></thead>
+    <tbody>
+      <tr><td>اختلاف سلوك Wi-Fi Direct بين الشركات المصنعة</td><td>عالٍ</td><td>اختبار مبكر على Samsung و Xiaomi و Oppo، وطبقة بديلة عبر Local-only hotspot</td></tr>
+      <tr><td>كثير من الهواتف المتوسطة منفذها USB 2.0</td><td>متوسط</td><td>عرض سرعة الكابل المتوقعة قبل البدء، والإبقاء على Wi-Fi كخيار افتراضي</td></tr>
+      <tr><td>Wi-Fi Aware غير مدعوم في أجهزة كثيرة</td><td>منخفض</td><td>هو تحسين إضافي فقط، وليس القناة الأساسية</td></tr>
+      <tr><td>قيود iOS على الشبكات</td><td>عالٍ</td><td>البدء بأندرويد، ودراسة الربط مع iPhone في نموذج تجريبي مستقل</td></tr>
+      <tr><td>سرعة التخزين في الهواتف الرخيصة (eMMC)</td><td>متوسط</td><td>اكتشافها وإظهارها في رسالة التشخيص بدل ظهور التطبيق بطيئًا</td></tr>
+      <tr><td>Quick Share من Google مدمج في النظام</td><td>عالٍ</td><td>التميز بالسرعة المقاسة والكابل والتوافق مع iPhone ونسخ الهاتف</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="open">
+  <h2><span class="n">14</span>أسئلة مفتوحة</h2>
+  <ul>
+    <li>نموذج الربح: مجاني بالكامل، أم شراء لمرة واحدة لميزات مثل الكابل ونسخ الهاتف، أم تبرعات؟</li>
+    <li>هل يكون الكود مفتوح المصدر لكسب الثقة؟</li>
+    <li>هل يُقدَّم دعم iPhone على الكابل في الأولوية؟</li>
+    <li>هل يلزم إطار عمل مشترك للواجهة (Flutter) لتسريع الوصول إلى iOS، أم تبقى الواجهات أصلية؟</li>
+  </ul>
+</section>
+
+<footer>مسودة أولى للنقاش. الأرقام أهداف تصميم وليست نتائج قياس، وستُحدّث بعد أول نموذج تجريبي.</footer>
+</main>
+</div>

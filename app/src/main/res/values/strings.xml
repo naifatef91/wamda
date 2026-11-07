@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ومضة</string>
+    <string name="home_send">إرسال</string>
+    <string name="home_receive">استلام</string>
+    <string name="home_device">هذا الجهاز: %1$s</string>
+    <string name="home_tagline">نقل الملفات بين الهواتف دون إنترنت</string>
+
+    <string name="perm_title">صلاحيات مطلوبة</string>
+    <string name="perm_body">يحتاج التطبيق إلى صلاحية الأجهزة القريبة لإنشاء شبكة مباشرة بين الهاتفين، وصلاحية الإشعارات لعرض تقدم النقل.</string>
+    <string name="perm_grant">منح الصلاحيات</string>
+
+    <string name="receive_preparing">جارٍ إنشاء الشبكة المباشرة…</string>
+    <string name="receive_scan_hint">امسح هذا الكود من هاتف المرسل</string>
+    <string name="receive_band">النطاق: %1$s</string>
+    <string name="receive_band_warn">الهاتف يعمل على 2.4GHz، السرعة ستكون محدودة. افصل الهاتف عن شبكة Wi-Fi ثم أعد المحاولة.</string>
+    <string name="receive_waiting">في انتظار المرسل…</string>
+
+    <string name="incoming_title">طلب استلام</string>
+    <string name="incoming_body">%1$s يريد إرسال %2$d ملف (%3$s)</string>
+    <string name="accept">قبول</string>
+    <string name="decline">رفض</string>
+
+    <string name="send_pick">اختر الملفات</string>
+    <string name="send_picked">%1$d ملف، %2$s</string>
+    <string name="send_scan">مسح كود المستقبل</string>
+    <string name="send_connecting_wifi">جارٍ الاتصال بشبكة المستقبل…</string>
+    <string name="send_handshake">جارٍ المصافحة…</string>
+
+    <string name="transfer_sending">إرسال إلى %1$s</string>
+    <string name="transfer_receiving">استلام من %1$s</string>
+    <string name="transfer_streams">%1$d اتصالات متوازية</string>
+    <string name="transfer_eta">المتبقي %1$s</string>
+    <string name="transfer_done">اكتمل النقل</string>
+    <string name="transfer_summary">%1$s خلال %2$s، بمتوسط %3$s</string>
+    <string name="transfer_failed">فشل النقل</string>
+    <string name="transfer_cancel">إلغاء</string>
+    <string name="transfer_skipped">موجود مسبقًا</string>
+    <string name="back_home">العودة</string>
+
+    <string name="home_send_hint">اختر الملفات ثم امسح الكود</string>
+    <string name="home_receive_hint">اعرض كود QR</string>
+    <string name="chip_encrypted">مشفّر</string>
+    <string name="receive_network_name">اسم الشبكة المؤقتة</string>
+    <string name="receive_network_note">تُحذف تلقائيًا بعد انتهاء النقل</string>
+    <string name="send_none_picked">لم تختر ملفات بعد</string>
+    <string name="send_picked_count">%1$d ملف جاهز للإرسال</string>
+    <string name="send_pick_hint">الصور والفيديو تُرسل كما هي دون ضغط</string>
+    <string name="send_pick_again">تغيير الملفات</string>
+    <string name="send_bad_qr">هذا الكود ليس كود ومضة</string>
+    <string name="transfer_sending_to">إرسال إلى</string>
+    <string name="transfer_receiving_from">استلام من</string>
+    <string name="transfer_files">الملفات</string>
+    <string name="transfer_stop">إيقاف النقل</string>
+    <string name="transfer_incomplete">ملفات غير مكتملة: %1$d</string>
+    <string name="stat_files">ملفًا</string>
+    <string name="stat_skipped">تم تخطيها</string>
+    <string name="stat_avg">المتوسط</string>
+
+    <string name="incoming_trust">الوثوق بهذا الجهاز والقبول تلقائيًا لاحقًا</string>
+    <string name="home_recent">آخر العمليات</string>
+    <string name="home_recent_empty">لا عمليات بعد. ابدأ بإرسال أو استلام.</string>
+    <string name="home_history_all">السجل كاملًا</string>
+
+    <string name="history_title">السجل</string>
+    <string name="history_clear">مسح</string>
+    <string name="history_empty">لا عمليات مسجّلة بعد</string>
+    <string name="history_total">إجمالي المنقول</string>
+    <string name="history_count">عملية</string>
+    <string name="history_best">أعلى سرعة</string>
+    <string name="history_from">من %1$s</string>
+    <string name="history_to">إلى %1$s</string>
+    <string name="history_line">%1$d ملف · %2$s · %3$s</string>
+    <string name="history_incomplete">غير مكتمل · %1$d ملف متبقٍ · %2$s وصلت</string>
+    <string name="history_resume">استكمال</string>
+    <string name="day_today">اليوم</string>
+    <string name="day_yesterday">أمس</string>
+
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_device">الجهاز</string>
+    <string name="settings_name">اسم الجهاز</string>
+    <string name="settings_name_hint">يراه الطرف الآخر عند الاتصال</string>
+    <string name="settings_folder">مجلد الاستلام</string>
+    <string name="settings_transfer">النقل</string>
+    <string name="settings_auto_accept">قبول تلقائي من الأجهزة الموثوقة</string>
+    <string name="settings_auto_accept_hint">بدون حوار تأكيد</string>
+    <string name="settings_skip">استكمال الملفات غير المكتملة</string>
+    <string name="settings_skip_hint">يكمل من آخر جزء وصل بدل البدء من الصفر</string>
+    <string name="settings_5ghz">تفضيل نطاق 5GHz</string>
+    <string name="settings_5ghz_hint">إن تعذّر يُستخدم 2.4GHz تلقائيًا</string>
+    <string name="settings_trusted">الأجهزة الموثوقة</string>
+    <string name="settings_trusted_empty">لا أجهزة موثوقة بعد. فعّل الخيار عند قبول أول استلام.</string>
+    <string name="settings_remove">إزالة</string>
+    <string name="settings_appearance">المظهر</string>
+    <string name="settings_theme">السمة</string>
+    <string name="theme_system">النظام</string>
+    <string name="theme_light">فاتح</string>
+    <string name="theme_dark">داكن</string>
+    <string name="settings_about">ومضة 0.1.0</string>
+    <string name="settings_name_dialog_title">تغيير اسم الجهاز</string>
+    <string name="settings_name_edit">تعديل</string>
+    <string name="save">حفظ</string>
+    <string name="cancel">إلغاء</string>
+    <string name="settings_about_section">حول</string>
+    <string name="settings_about_app">حول التطبيق</string>
+    <string name="settings_privacy">سياسة الخصوصية</string>
+    <string name="settings_terms">اتفاقية المستخدم</string>
+
+    <string name="scan_hint">ضع كود QR داخل الإطار</string>
+    <string name="scan_close">إغلاق الماسح</string>
+
+    <string name="send_find_nearby">الأجهزة القريبة</string>
+    <string name="discover_title">اختر المستقبل</string>
+    <string name="discover_searching">جارٍ البحث عبر Bluetooth…</string>
+    <string name="discover_found">%1$d جهاز قريب</string>
+    <string name="discover_fetching">جارٍ قراءة بيانات الاتصال…</string>
+    <string name="discover_hint">اضغط على جهاز يعرض شاشة الاستلام، أو امسح الكود الظاهر عليه</string>
+    <string name="discover_bt_off">Bluetooth مطفأ. شغّله أو استخدم مسح الكود.</string>
+    <string name="discover_near">قريب جدًا</string>
+    <string name="discover_mid">متوسط</string>
+    <string name="discover_far">بعيد</string>
+
+    <string name="receive_dropped">انقطع الاتصال بالمرسل. الملفات المستلمة محفوظة، وبانتظار عودته لاستكمال النقل من حيث توقف…</string>
+    <string name="send_reconnecting">انقطع الاتصال، جارٍ إعادة المحاولة (%1$d من %2$d)…</string>
+    <string name="retry">إعادة المحاولة</string>
+    <string name="failed_kept">ما وصل لم يُفقد. عند إعادة المحاولة يُستكمل النقل من آخر جزء وصل.</string>
+
+    <string name="tab_images">صور</string>
+    <string name="tab_videos">فيديو</string>
+    <string name="tab_audio">صوت</string>
+    <string name="tab_apps">تطبيقات</string>
+    <string name="tab_docs">ملفات</string>
+    <string name="pick_all">تحديد الكل</string>
+    <string name="pick_none">إلغاء التحديد</string>
+    <string name="pick_count">%1$d ملف</string>
+    <string name="pick_items">%1$d عنصر</string>
+    <string name="pick_hint">اختر ما تريد إرساله</string>
+    <string name="pick_next">التالي</string>
+    <string name="pick_empty">لا عناصر هنا</string>
+    <string name="pick_docs_hint">المستندات والملفات الأخرى تُختار من مستعرض النظام</string>
+    <string name="pick_browse">استعراض الملفات</string>
+    <string name="pick_need_permission">يحتاج التطبيق إذن الوصول إلى الصور والفيديو والصوت لعرضها هنا</string>
+
+    <string name="send_more">إرسال ملفات أخرى</string>
+    <string name="receive_more">استلام المزيد</string>
+    <string name="session_open">الاتصال ما زال مفتوحًا مع %1$s</string>
+    <string name="send_to_same">إرسال إلى %1$s</string>
+
+    <string name="notif_channel">عمليات النقل</string>
+    <string name="notif_running">ومضة يعمل</string>
+</resources>

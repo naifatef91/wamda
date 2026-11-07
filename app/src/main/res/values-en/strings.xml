@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wamda</string>
+    <string name="home_send">Send</string>
+    <string name="home_receive">Receive</string>
+    <string name="home_device">This device: %1$s</string>
+    <string name="home_tagline">Phone-to-phone file transfer, no internet</string>
+
+    <string name="perm_title">Permissions needed</string>
+    <string name="perm_body">Wamda needs the Nearby devices permission to create a direct network between the two phones, and Notifications to show transfer progress.</string>
+    <string name="perm_grant">Grant permissions</string>
+
+    <string name="receive_preparing">Creating direct network…</string>
+    <string name="receive_scan_hint">Scan this code from the sending phone</string>
+    <string name="receive_band">Band: %1$s</string>
+    <string name="receive_band_warn">This phone is on 2.4GHz, speed will be limited. Disconnect from Wi-Fi and try again.</string>
+    <string name="receive_waiting">Waiting for sender…</string>
+
+    <string name="incoming_title">Incoming transfer</string>
+    <string name="incoming_body">%1$s wants to send %2$d files (%3$s)</string>
+    <string name="accept">Accept</string>
+    <string name="decline">Decline</string>
+
+    <string name="send_pick">Choose files</string>
+    <string name="send_picked">%1$d files, %2$s</string>
+    <string name="send_scan">Scan receiver code</string>
+    <string name="send_connecting_wifi">Connecting to receiver network…</string>
+    <string name="send_handshake">Handshaking…</string>
+
+    <string name="transfer_sending">Sending to %1$s</string>
+    <string name="transfer_receiving">Receiving from %1$s</string>
+    <string name="transfer_streams">%1$d parallel streams</string>
+    <string name="transfer_eta">%1$s left</string>
+    <string name="transfer_done">Transfer complete</string>
+    <string name="transfer_summary">%1$s in %2$s, average %3$s</string>
+    <string name="transfer_failed">Transfer failed</string>
+    <string name="transfer_cancel">Cancel</string>
+    <string name="transfer_skipped">Already present</string>
+    <string name="back_home">Back</string>
+
+    <string name="home_send_hint">Pick files, then scan the code</string>
+    <string name="home_receive_hint">Show a QR code</string>
+    <string name="chip_encrypted">Encrypted</string>
+    <string name="receive_network_name">Temporary network name</string>
+    <string name="receive_network_note">Removed automatically after the transfer</string>
+    <string name="send_none_picked">No files picked yet</string>
+    <string name="send_picked_count">%1$d files ready to send</string>
+    <string name="send_pick_hint">Photos and videos are sent as-is, never recompressed</string>
+    <string name="send_pick_again">Change files</string>
+    <string name="send_bad_qr">That is not a Wamda code</string>
+    <string name="transfer_sending_to">Sending to</string>
+    <string name="transfer_receiving_from">Receiving from</string>
+    <string name="transfer_files">Files</string>
+    <string name="transfer_stop">Stop transfer</string>
+    <string name="transfer_incomplete">Incomplete files: %1$d</string>
+    <string name="stat_files">files</string>
+    <string name="stat_skipped">skipped</string>
+    <string name="stat_avg">average</string>
+
+    <string name="incoming_trust">Trust this device and accept automatically next time</string>
+    <string name="home_recent">Recent</string>
+    <string name="home_recent_empty">No transfers yet. Send or receive to start.</string>
+    <string name="home_history_all">Full history</string>
+
+    <string name="history_title">History</string>
+    <string name="history_clear">Clear</string>
+    <string name="history_empty">No transfers recorded yet</string>
+    <string name="history_total">Total moved</string>
+    <string name="history_count">transfers</string>
+    <string name="history_best">Best speed</string>
+    <string name="history_from">From %1$s</string>
+    <string name="history_to">To %1$s</string>
+    <string name="history_line">%1$d files · %2$s · %3$s</string>
+    <string name="history_incomplete">Incomplete · %1$d files left · %2$s received</string>
+    <string name="history_resume">Resume</string>
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_device">Device</string>
+    <string name="settings_name">Device name</string>
+    <string name="settings_name_hint">Shown to the other phone when connecting</string>
+    <string name="settings_folder">Receive folder</string>
+    <string name="settings_transfer">Transfer</string>
+    <string name="settings_auto_accept">Auto-accept from trusted devices</string>
+    <string name="settings_auto_accept_hint">No confirmation dialog</string>
+    <string name="settings_skip">Resume incomplete files</string>
+    <string name="settings_skip_hint">Continues from the last chunk instead of starting over</string>
+    <string name="settings_5ghz">Prefer the 5GHz band</string>
+    <string name="settings_5ghz_hint">Falls back to 2.4GHz automatically</string>
+    <string name="settings_trusted">Trusted devices</string>
+    <string name="settings_trusted_empty">None yet. Tick the option when accepting your first transfer.</string>
+    <string name="settings_remove">Remove</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_about">Wamda 0.1.0</string>
+    <string name="settings_name_dialog_title">Change device name</string>
+    <string name="settings_name_edit">Edit</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="settings_about_section">About</string>
+    <string name="settings_about_app">About the app</string>
+    <string name="settings_privacy">Privacy policy</string>
+    <string name="settings_terms">Terms of use</string>
+
+    <string name="scan_hint">Place the QR code inside the frame</string>
+    <string name="scan_close">Close scanner</string>
+
+    <string name="send_find_nearby">Nearby devices</string>
+    <string name="discover_title">Choose receiver</string>
+    <string name="discover_searching">Searching over Bluetooth…</string>
+    <string name="discover_found">%1$d nearby</string>
+    <string name="discover_fetching">Reading connection details…</string>
+    <string name="discover_hint">Tap a phone showing the Receive screen, or scan the code it shows</string>
+    <string name="discover_bt_off">Bluetooth is off. Turn it on or scan the code instead.</string>
+    <string name="discover_near">Very close</string>
+    <string name="discover_mid">Medium</string>
+    <string name="discover_far">Far</string>
+
+    <string name="receive_dropped">Lost the sender. Received files are kept; waiting for it to come back and resume…</string>
+    <string name="send_reconnecting">Connection lost, retrying (%1$d of %2$d)…</string>
+    <string name="retry">Retry</string>
+    <string name="failed_kept">Nothing received was lost. Retrying resumes from the last chunk that arrived.</string>
+
+    <string name="tab_images">Photos</string>
+    <string name="tab_videos">Videos</string>
+    <string name="tab_audio">Audio</string>
+    <string name="tab_apps">Apps</string>
+    <string name="tab_docs">Files</string>
+    <string name="pick_all">Select all</string>
+    <string name="pick_none">Clear</string>
+    <string name="pick_count">%1$d files</string>
+    <string name="pick_items">%1$d items</string>
+    <string name="pick_hint">Choose what to send</string>
+    <string name="pick_next">Next</string>
+    <string name="pick_empty">Nothing here</string>
+    <string name="pick_docs_hint">Documents and other files are chosen with the system browser</string>
+    <string name="pick_browse">Browse files</string>
+    <string name="pick_need_permission">Wamda needs access to photos, videos and audio to list them here</string>
+
+    <string name="send_more">Send more files</string>
+    <string name="receive_more">Receive more</string>
+    <string name="session_open">Still connected to %1$s</string>
+    <string name="send_to_same">Send to %1$s</string>
+
+    <string name="notif_channel">Transfers</string>
+    <string name="notif_running">Wamda is running</string>
+</resources>

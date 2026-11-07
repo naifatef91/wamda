@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pc_title">وضع الكمبيوتر</string>
+    <string name="pc_subtitle">انقل الملفات من متصفح الكمبيوتر دون تثبيت أي برنامج</string>
+    <string name="pc_starting">جارٍ إنشاء الشبكة وتشغيل الخادم…</string>
+    <string name="pc_failed">تعذّر تشغيل وضع الكمبيوتر: %1$s</string>
+    <string name="pc_retry">إعادة المحاولة</string>
+
+    <string name="pc_step1">1. وصّل الكمبيوتر بشبكة Wi-Fi</string>
+    <string name="pc_step1_hint">اختر هذه الشبكة من قائمة شبكات Wi-Fi في الكمبيوتر وأدخل كلمة المرور</string>
+    <string name="pc_ssid">اسم الشبكة</string>
+    <string name="pc_password">كلمة المرور</string>
+    <string name="pc_copy">نسخ</string>
+    <string name="pc_copied">تم النسخ</string>
+
+    <string name="pc_step2">2. افتح في المتصفح</string>
+    <string name="pc_step2_hint">اكتب هذا العنوان في Chrome أو Edge أو Safari، أو امسح الرمز بالكاميرا</string>
+
+    <string name="pc_stats_served">أُرسل للكمبيوتر</string>
+    <string name="pc_stats_received">استُلم من الكمبيوتر</string>
+    <string name="pc_stats_client">آخر جهاز</string>
+    <string name="pc_stats_none">لم يتصل أحد بعد</string>
+    <string name="pc_uploaded_count">%1$d ملف استُلم في Download/Wamda</string>
+
+    <string name="pc_share">مشاركة ملفات</string>
+    <string name="pc_share_count">مشاركة ملفات (%1$d)</string>
+    <string name="pc_shared_hint">الملفات التي تختارها تظهر في متصفح الكمبيوتر للتنزيل</string>
+    <string name="pc_stop">إيقاف والعودة</string>
+</resources>

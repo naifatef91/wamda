@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pc_title">PC mode</string>
+    <string name="pc_subtitle">Move files from your computer\'s browser, no software needed</string>
+    <string name="pc_starting">Creating the network and starting the server…</string>
+    <string name="pc_failed">Could not start PC mode: %1$s</string>
+    <string name="pc_retry">Retry</string>
+
+    <string name="pc_step1">1. Connect the computer to Wi-Fi</string>
+    <string name="pc_step1_hint">Pick this network in the computer\'s Wi-Fi list and enter the password</string>
+    <string name="pc_ssid">Network</string>
+    <string name="pc_password">Password</string>
+    <string name="pc_copy">Copy</string>
+    <string name="pc_copied">Copied</string>
+
+    <string name="pc_step2">2. Open in the browser</string>
+    <string name="pc_step2_hint">Type this address into Chrome, Edge or Safari, or scan the code</string>
+
+    <string name="pc_stats_served">Sent to PC</string>
+    <string name="pc_stats_received">Received from PC</string>
+    <string name="pc_stats_client">Last client</string>
+    <string name="pc_stats_none">Nobody connected yet</string>
+    <string name="pc_uploaded_count">%1$d file(s) received in Download/Wamda</string>
+
+    <string name="pc_share">Share files</string>
+    <string name="pc_share_count">Share files (%1$d)</string>
+    <string name="pc_shared_hint">Files you pick here show up in the computer\'s browser for download</string>
+    <string name="pc_stop">Stop and go back</string>
+</resources>
