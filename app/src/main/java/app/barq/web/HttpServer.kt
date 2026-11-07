@@ -53,8 +53,14 @@ class HttpServer(
     private val context: Context,
     private val filesProvider: () -> List<PickedFile>,
     private val onUploaded: (name: String, size: Long) -> Unit,
+    private val phoneName: () -> String = { "Wamda" },
+    private val uploadedNames: () -> List<String> = { emptyList() },
 ) {
-    data class Stats(val bytesServed: Long = 0L, val bytesReceived: Long = 0L, val lastClientAddress: String? = null)
+    /** [lastSeenMs] = wall-clock time of the last request; the page polls every 2 s, so < 8 s means "connected". */
+    data class Stats(val bytesServed: Long = 0L, val bytesReceived: Long = 0L, val lastClientAddress: String? = null, val lastSeenMs: Long = 0L)
+
+    @Serializable
+    private data class StatusJson(val phone: String, val shared: Int, val uploaded: List<String>, val bytesServed: Long, val bytesReceived: Long)
 
     private val _stats = MutableStateFlow(Stats())
     val stats: StateFlow<Stats> get() = _stats
@@ -118,7 +124,7 @@ class HttpServer(
     private fun serve(socket: Socket) {
         socket.soTimeout = 60_000
         socket.tcpNoDelay = true
-        socket.inetAddress?.hostAddress?.let { addr -> _stats.update { it.copy(lastClientAddress = addr) } }
+        socket.inetAddress?.hostAddress?.let { addr -> _stats.update { it.copy(lastClientAddress = addr, lastSeenMs = System.currentTimeMillis()) } }
         try {
             val input = BufferedInputStream(socket.getInputStream(), 64 * 1024)
             val output = BufferedOutputStream(socket.getOutputStream(), 64 * 1024)
@@ -198,6 +204,7 @@ class HttpServer(
                 if (name.matches(ASSET_NAME)) asset("pc/$name", mimeFor(name)) else text(404, "Not found")
             }
             get && path == "/api/files" -> apiFiles()
+            get && path == "/api/status" -> apiStatus()
             get && path.startsWith("/d/") -> download(req, path.substring(3))
             req.method == "POST" && path == "/upload" -> upload(req)
             req.method == "OPTIONS" -> Response(204, mutableMapOf("Allow" to "GET, HEAD, POST, OPTIONS"), 0L) {}
@@ -230,6 +237,16 @@ class HttpServer(
     private fun apiFiles(): Response {
         val list = refreshSnapshot().map { FileJson(it.id, displayName(it.file.name), it.file.size, it.file.mime ?: mimeFor(it.file.name)) }
         val json = wireJson.encodeToString(FilesJson.serializer(), FilesJson(list))
+        return bytesResponse(200, "application/json; charset=utf-8", json.toByteArray(StandardCharsets.UTF_8))
+            .also { it.headers["Cache-Control"] = "no-store" }
+    }
+
+    private fun apiStatus(): Response {
+        val s = _stats.value
+        val json = wireJson.encodeToString(
+            StatusJson.serializer(),
+            StatusJson(phoneName(), filesProvider().size, uploadedNames().takeLast(20), s.bytesServed, s.bytesReceived),
+        )
         return bytesResponse(200, "application/json; charset=utf-8", json.toByteArray(StandardCharsets.UTF_8))
             .also { it.headers["Cache-Control"] = "no-store" }
     }

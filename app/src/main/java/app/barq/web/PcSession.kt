@@ -28,6 +28,7 @@ sealed class PcState {
         val stats: HttpServer.Stats,
         val sharedCount: Int,
         val uploadedCount: Int,
+        val uploadedNames: List<String> = emptyList(),
     ) : PcState()
     data class Failed(val message: String) : PcState()
 }
@@ -80,6 +81,8 @@ object PcSession {
                         context = app,
                         filesProvider = { _shared.value },
                         onUploaded = { name, _ -> _uploaded.update { it + name } },
+                        phoneName = { Settings.get(app).deviceName },
+                        uploadedNames = { _uploaded.value },
                     )
                     s.start()
                     server = s
@@ -137,6 +140,7 @@ object PcSession {
             stats = s.stats.value,
             sharedCount = _shared.value.size,
             uploadedCount = _uploaded.value.size,
+            uploadedNames = _uploaded.value,
         )
     }
 

@@ -117,6 +117,8 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        PcConnectionCard(s)
+
         // Step 1: join the network
         BarqCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -152,7 +154,7 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
             PcStatTile(s.stats.lastClientAddress ?: "—", stringResource(R.string.pc_stats_client), Modifier.weight(1f), mono = true)
         }
         if (s.uploadedCount > 0) {
-            Text(stringResource(R.string.pc_uploaded_count, s.uploadedCount), style = MaterialTheme.typography.bodySmall, color = x.ok, modifier = Modifier.padding(start = 4.dp))
+            PcReceivedList(s.uploadedNames)
         } else if (s.stats.lastClientAddress == null) {
             Text(stringResource(R.string.pc_stats_none), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         }

@@ -7,6 +7,12 @@
     <string name="pc_retry">Retry</string>
 
     <string name="pc_step1">1. Connect the computer to Wi-Fi</string>
+    <string name="pc_connected">Computer connected · %1$s</string>
+    <string name="pc_connected_hint">Transfer works both ways now: share files from here, or drop them onto the browser page</string>
+    <string name="pc_waiting">Waiting for the computer…</string>
+    <string name="pc_waiting_hint">Join the network below on the computer, then open the link in a browser</string>
+    <string name="pc_received_title">Received from the computer: %1$d files</string>
+    <string name="pc_received_hint">Saved in Download/Wamda</string>
     <string name="pc_use_5ghz">Use 5GHz</string>
     <string name="pc_use_5ghz_hint">Faster, but some computers cannot see 5GHz networks. Leave it off if the network does not appear.</string>
     <string name="pc_change_password">Change password</string>

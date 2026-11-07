@@ -8,6 +8,12 @@
 
     <string name="pc_step1">1. وصّل الكمبيوتر بشبكة Wi-Fi</string>
     <string name="pc_step1_hint">اختر هذه الشبكة من قائمة شبكات Wi-Fi في الكمبيوتر وأدخل كلمة المرور. الشبكة وكلمة المرور ثابتتان، فسيتذكرهما الكمبيوتر في المرة القادمة.</string>
+    <string name="pc_connected">الكمبيوتر متصل · %1$s</string>
+    <string name="pc_connected_hint">النقل متاح الآن في الاتجاهين: شارك ملفات من هنا، أو اسحبها إلى صفحة المتصفح</string>
+    <string name="pc_waiting">في انتظار اتصال الكمبيوتر…</string>
+    <string name="pc_waiting_hint">وصّل الكمبيوتر بالشبكة أدناه ثم افتح الرابط في المتصفح</string>
+    <string name="pc_received_title">وصل من الكمبيوتر: %1$d ملف</string>
+    <string name="pc_received_hint">محفوظة في Download/Wamda</string>
     <string name="pc_use_5ghz">استخدام 5GHz</string>
     <string name="pc_use_5ghz_hint">أسرع، لكن بعض الحواسيب لا ترى شبكات 5GHz. إن لم تظهر الشبكة أبقه مطفأً.</string>
     <string name="pc_change_password">تغيير كلمة المرور</string>

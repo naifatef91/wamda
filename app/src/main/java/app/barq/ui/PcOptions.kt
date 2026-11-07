@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +26,50 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.barq.R
 import app.barq.data.Settings
 import app.barq.web.PcSession
+
+/** Live link status: the browser polls every 2 s, so a request in the last 8 s means the computer is connected. */
+@Composable
+fun PcConnectionCard(s: app.barq.web.PcState.Ready) {
+    val c = MaterialTheme.colorScheme
+    val x = app.barq.ui.theme.LocalBarqExtras.current
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(1000); now = System.currentTimeMillis() } }
+    val connected = s.stats.lastSeenMs > 0 && now - s.stats.lastSeenMs < 8_000
+    BarqCard(Modifier.fillMaxWidth(), tint = if (connected) x.okSoft else null) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconBadge(if (connected) BarqIcons.Check else BarqIcons.Wifi, if (connected) x.ok else c.primaryContainer, if (connected) c.surface else c.primary)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (connected) stringResource(R.string.pc_connected, s.stats.lastClientAddress ?: "") else stringResource(R.string.pc_waiting),
+                    style = MaterialTheme.typography.titleMedium, color = if (connected) x.ok else c.onSurface,
+                )
+                Text(
+                    stringResource(if (connected) R.string.pc_connected_hint else R.string.pc_waiting_hint),
+                    style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** Files the computer uploaded during this session, newest first. */
+@Composable
+fun PcReceivedList(names: List<String>) {
+    if (names.isEmpty()) return
+    val c = MaterialTheme.colorScheme
+    BarqCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.pc_received_title, names.size), style = MaterialTheme.typography.titleMedium)
+            names.asReversed().take(6).forEach { n ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IconBadge(BarqIcons.ArrowDown, c.primaryContainer, c.primary, size = 30)
+                    Text(n, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+            }
+            Text(stringResource(R.string.pc_received_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+        }
+    }
+}
 
 /** Band chip, 5GHz switch and the password editor for PC mode; any change restarts the group. */
 @Composable
