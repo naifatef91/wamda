@@ -18,4 +18,6 @@
     <string name="home_activity">Recent activity</string>
     <string name="home_transfers">Transfers</string>
     <string name="home_view_all">View all</string>
+    <string name="home_pc">Computer</string>
+    <string name="home_cable">Cable</string>
 </resources>

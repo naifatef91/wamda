@@ -18,4 +18,6 @@
     <string name="home_activity">آخر النشاطات</string>
     <string name="home_transfers">عمليات النقل</string>
     <string name="home_view_all">عرض الكل</string>
+    <string name="home_pc">الكمبيوتر</string>
+    <string name="home_cable">الكابل</string>
 </resources>

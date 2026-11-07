@@ -144,8 +144,8 @@ fun HomeScreen(
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BarqButton(stringResource(R.string.pc_title), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Wifi, modifier = Modifier.weight(1f))
-            BarqButton(stringResource(R.string.cable_title), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Next, modifier = Modifier.weight(1f))
+            BarqButton(stringResource(R.string.home_pc), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Wifi, modifier = Modifier.weight(1f))
+            BarqButton(stringResource(R.string.home_cable), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Next, modifier = Modifier.weight(1f))
         }
 
         Spacer(Modifier.height(26.dp))
