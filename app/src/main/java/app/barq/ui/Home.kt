@@ -74,7 +74,7 @@ private val RadarMuted = Color(0xFF8FA1A6)
 @Composable
 fun HomeScreen(
     onSend: () -> Unit, onReceive: () -> Unit, onHistory: () -> Unit, onSettings: () -> Unit,
-    onOpenTransfer: () -> Unit = {}, onPc: () -> Unit = {},
+    onOpenTransfer: () -> Unit = {}, onPc: () -> Unit = {}, onCable: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
@@ -143,7 +143,10 @@ fun HomeScreen(
             )
         }
         Spacer(Modifier.height(12.dp))
-        BarqButton(stringResource(R.string.pc_title), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Wifi)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            BarqButton(stringResource(R.string.pc_title), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Wifi, modifier = Modifier.weight(1f))
+            BarqButton(stringResource(R.string.cable_title), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Next, modifier = Modifier.weight(1f))
+        }
 
         Spacer(Modifier.height(26.dp))
         Text(stringResource(R.string.home_activity), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant)

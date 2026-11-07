@@ -33,7 +33,7 @@ class BroadcastHost(
     private val onDone: (session: String, result: SenderResult) -> Unit,
     private val onFailed: (session: String, cause: Throwable) -> Unit,
 ) {
-    private class Peer(val name: String, val data: Channel<Socket> = Channel(Channel.UNLIMITED))
+    private class Peer(val name: String, val data: Channel<Link> = Channel(Channel.UNLIMITED))
 
     private val peers = ConcurrentHashMap<String, Peer>()
 
@@ -84,9 +84,9 @@ class BroadcastHost(
                 peers[hello.session] = peer
                 onJoined(hello.session, hello.deviceName)
                 try {
-                    val sender = Sender(HostedTransport(socket, peer.data), token, deviceName, items) { stats, _ ->
+                    val sender = Sender(HostedTransport(SocketLink(socket), peer.data), token, deviceName, items, onPlanned = { stats, _ ->
                         onPlanned(hello.session, hello.deviceName, stats)
-                    }
+                    })
                     val result = sender.run()
                     onDone(hello.session, result)
                 } catch (e: CancellationException) {
@@ -102,7 +102,7 @@ class BroadcastHost(
             Protocol.Role.DATA -> {
                 val peer = peers[hello.session]
                 if (peer == null) { runCatching { socket.close() }; return }
-                peer.data.send(socket)
+                peer.data.send(SocketLink(socket))
             }
             else -> runCatching { socket.close() }
         }

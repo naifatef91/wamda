@@ -9,6 +9,9 @@ import app.barq.data.TransferRecord
 import app.barq.engine.BroadcastHost
 import app.barq.engine.DialTransport
 import app.barq.engine.FileEntry
+import app.barq.engine.Link
+import app.barq.engine.SenderTransport
+import app.barq.net.usb.UsbSession
 import app.barq.engine.Protocol
 import app.barq.engine.QrPayload
 import app.barq.engine.ReadableFile
@@ -125,11 +128,11 @@ object TransferController {
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
                 var stats: TransferStats? = null
                 val transport = DialTransport(network, addr.hostAddress ?: "", peer.advert.p, peer.advert.fp, peer.advert.e, address = addr)
-                val sender = Sender(transport, peer.advert.t, deviceName(app), items) { s, p ->
+                val sender = Sender(transport, peer.advert.t, deviceName(app), items, onPlanned = { s, p ->
                     stats = s; lastStats = s
                     if (startedAt == 0L) startedAt = System.currentTimeMillis()
                     if (p.isNotBlank()) peerName = p
-                }
+                })
                 val ticker = launch {
                     while (isActive) {
                         delay(500)
@@ -239,6 +242,7 @@ object TransferController {
                         stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, group.band, it.snapshot()) }
                     }
                 }
+                activeReceiver = receiver
                 try {
                     receiver.run()
                 } catch (e: CancellationException) {
@@ -252,6 +256,7 @@ object TransferController {
                     throw e
                 } finally {
                     ticker.cancel(); watchdog?.cancel()
+                    if (activeReceiver === receiver) activeReceiver = null
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -323,11 +328,19 @@ object TransferController {
                         }
 
                         var stats: TransferStats? = null
-                        val sender = Sender(network, qr.ip, qr.port, qr.token, qr.fp, deviceName(app), items, onPlanned = { s, p ->
-                            stats = s; lastStats = s
-                            if (startedAt == 0L) startedAt = System.currentTimeMillis()
-                            if (p.isNotBlank()) peer = p
-                        }, encrypted = qr.enc)
+                        // Multipath: if a cable to the receiver is up, two USB streams join the Wi-Fi ones.
+                        val extras: List<suspend () -> Link> =
+                            if (UsbSession.isConnected) List(2) { { UsbSession.openStream() } } else emptyList()
+                        if (extras.isNotEmpty()) android.util.Log.i(TAG, "multipath: wifi + ${extras.size} usb streams")
+                        val sender = Sender(
+                            DialTransport(network, qr.ip, qr.port, qr.fp, qr.enc), qr.token, deviceName(app), items,
+                            onPlanned = { s, p ->
+                                stats = s; lastStats = s
+                                if (startedAt == 0L) startedAt = System.currentTimeMillis()
+                                if (p.isNotBlank()) peer = p
+                            },
+                            extraLinks = extras,
+                        )
                         val ticker = launch {
                             while (isActive) {
                                 delay(500)
@@ -501,6 +514,126 @@ object TransferController {
                 _state.value = TransferState.Failed(describe(e), retryable = true)
             } finally {
                 client?.close(); client = null
+            }
+        }
+    }
+
+    // ---------- USB-C cable (2.0) ----------
+
+    /** The receiver currently serving a session, so USB streams can join it (multipath). */
+    @Volatile private var activeReceiver: Receiver? = null
+    private var usbFeeder: Job? = null
+
+    /**
+     * Start listening for cable events: streams the remote opens go to the active
+     * receiver; a "send" announcement starts a cable-only receive.
+     */
+    fun attachUsb(context: Context) {
+        val app = context.applicationContext
+        UsbSession.start(app)
+        if (usbFeeder?.isActive == true) return
+        usbFeeder = scope.launch {
+            launch {
+                UsbSession.incoming.collect { link ->
+                    val r = activeReceiver
+                    if (r != null) launch { r.admit(link) } else { android.util.Log.w(TAG, "usb stream with no receiver; closing"); runCatching { link.close() } }
+                }
+            }
+            launch {
+                UsbSession.remoteSend.collect { msg -> startUsbReceive(app, msg.token, msg.name) }
+            }
+        }
+    }
+
+    /** Sender side over the cable only: streams are mux channels; no TLS (physical link). */
+    fun startUsbSend(context: Context, files: List<PickedFile>) {
+        val app = context.applicationContext
+        if (!UsbSession.isConnected) return
+        cancelJobOnly()
+        lastDirection = Direction.SEND
+        lastSend = null
+        job = scope.launch {
+            var peer = UsbSession.peerName
+            var startedAt = 0L
+            var lastStats: TransferStats? = null
+            try {
+                _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
+                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+                val token = (100000 + (Math.random() * 900000).toInt()).toString()
+                UsbSession.announceSend(token, deviceName(app))
+                delay(300) // let the remote install its receiver before the first stream opens
+                _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
+                val transport = object : SenderTransport {
+                    override val writesHello = true
+                    override suspend fun control() = UsbSession.openStream()
+                    override suspend fun data() = UsbSession.openStream()
+                }
+                var stats: TransferStats? = null
+                val sender = Sender(transport, token, deviceName(app), items, onPlanned = { s, p ->
+                    stats = s; lastStats = s
+                    if (startedAt == 0L) startedAt = System.currentTimeMillis()
+                    if (p.isNotBlank()) peer = p
+                })
+                val ticker = launch {
+                    while (isActive) { delay(500); stats?.let { _state.value = TransferState.Running(Direction.SEND, peer, "USB", it.snapshot()) } }
+                }
+                val result = try { sender.run() } finally { ticker.cancel() }
+                record(app, Direction.SEND, peer, "USB", stats, startedAt, result.incompleteFiles.size)
+                _state.value = TransferState.Finished(Direction.SEND, peer, stats?.snapshot() ?: emptySnapshot(), result.incompleteFiles.size, sessionOpen = false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "usb send failed", e)
+                lastStats?.let { st -> record(app, Direction.SEND, peer, "USB", st, startedAt, st.snapshot().files.count { !it.skipped && it.done < it.size }) }
+                _state.value = TransferState.Failed(describe(e), retryable = false)
+            }
+        }
+    }
+
+    /** Receiver side over the cable only: the remote announced [token]; serve the streams it opens. */
+    private fun startUsbReceive(app: Context, token: String, from: String) {
+        cancelJobOnly()
+        lastDirection = Direction.RECEIVE
+        job = scope.launch {
+            val settings = Settings.get(app)
+            var stats: TransferStats? = null
+            var peer = from
+            var startedAt = 0L
+            val done = CompletableDeferred<Unit>()
+            try {
+                _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
+                val receiver = Receiver(
+                    port = Protocol.PORT, token = token, deviceName = deviceName(app),
+                    store = ReceiveStore(app, resume = settings.state.value.skipExisting),
+                    onIncoming = { manifest ->
+                        val s = settings.state.value
+                        if (s.autoAcceptTrusted && manifest.senderName in s.trustedDevices) return@Receiver true
+                        pendingSender = manifest.senderName
+                        val gate = CompletableDeferred<Boolean>().also { acceptGate = it }
+                        _state.value = TransferState.AwaitingAccept(manifest)
+                        gate.await()
+                    },
+                    onPlanned = { s, p -> stats = s; peer = p; startedAt = System.currentTimeMillis() },
+                    onSessionDone = { r ->
+                        record(app, Direction.RECEIVE, peer, "USB", stats, startedAt, r.incompleteFiles.size)
+                        _state.value = TransferState.Finished(Direction.RECEIVE, peer, stats?.snapshot() ?: emptySnapshot(), r.incompleteFiles.size, sessionOpen = false)
+                        done.complete(Unit)
+                    },
+                    onDropped = { e -> _state.value = TransferState.Failed(describe(e), retryable = false); done.complete(Unit) },
+                    streams = settings.state.value.streams,
+                )
+                activeReceiver = receiver
+                val ticker = launch {
+                    while (isActive) { delay(500); stats?.let { _state.value = TransferState.Running(Direction.RECEIVE, peer, "USB", it.snapshot()) } }
+                }
+                try { done.await() } finally { ticker.cancel() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "usb receive failed", e)
+                _state.value = TransferState.Failed(describe(e), retryable = false)
+            } finally {
+                activeReceiver = null
             }
         }
     }

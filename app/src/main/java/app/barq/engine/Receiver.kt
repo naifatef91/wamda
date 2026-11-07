@@ -65,7 +65,7 @@ class Receiver(
                             runCatching { socket.close() }
                             return@launch
                         }
-                        handle(socket)
+                        admit(SocketLink(socket))
                     }
                 }
                 @Suppress("UNREACHABLE_CODE")
@@ -76,26 +76,30 @@ class Receiver(
         }
     }
 
-    private suspend fun handle(socket: Socket) {
+    /**
+     * Serves one incoming link of any kind: a TLS socket accepted by [run], or a USB
+     * stream handed over by the cable session (multipath data streams included).
+     */
+    suspend fun admit(link: Link) {
         var isControl = false
         try {
-            socket.use {
-                val inp = DataInputStream(BufferedInputStream(socket.getInputStream(), Protocol.STREAM_BUFFER))
+            link.use {
+                val inp = DataInputStream(BufferedInputStream(link.input, Protocol.STREAM_BUFFER))
                 val hello = wireJson.decodeFromString(Hello.serializer(), FrameIO.readJson(inp, Protocol.Type.HELLO))
                 if (hello.magic != Protocol.MAGIC || hello.token != token) {
-                    val out = DataOutputStream(socket.getOutputStream())
+                    val out = DataOutputStream(link.output)
                     FrameIO.writeJson(out, Protocol.Type.ERROR, "bad token")
                     return
                 }
                 when (hello.role) {
-                    Protocol.Role.CONTROL -> { isControl = true; control(socket, inp, hello) }
-                    Protocol.Role.DATA -> data(inp)
+                    Protocol.Role.CONTROL -> { isControl = true; control(link, inp, hello) }
+                    Protocol.Role.DATA -> data(inp, link.kind)
                 }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            android.util.Log.w("Wamda", "receiver connection from ${socket.inetAddress} failed (control=$isControl)", e)
+            android.util.Log.w("Wamda", "receiver ${link.kind} link from ${link.remote} failed (control=$isControl)", e)
             if (isControl && sessionActive) dropSession(e)
             // A failing data stream is noticed by the control handler when the sender tears down.
         }
@@ -117,17 +121,17 @@ class Receiver(
             return if (encrypted) Tls.wrapClient(s, host, port, fingerprint) else s
         }
         coroutineScope {
-            dial().use { control ->
-                val out = DataOutputStream(BufferedOutputStream(control.getOutputStream(), 64 * 1024))
+            SocketLink(dial()).use { control ->
+                val out = DataOutputStream(BufferedOutputStream(control.output, 64 * 1024))
                 FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.CONTROL, deviceName = deviceName, session = session)))
-                val inp = DataInputStream(BufferedInputStream(control.getInputStream(), Protocol.STREAM_BUFFER))
+                val inp = DataInputStream(BufferedInputStream(control.input, Protocol.STREAM_BUFFER))
                 control(control, inp, Hello(token = token, role = Protocol.Role.CONTROL, deviceName = "", session = session)) { n ->
                     repeat(n) {
                         launch {
-                            dial().use { ds ->
-                                val dout = DataOutputStream(BufferedOutputStream(ds.getOutputStream(), 4096))
+                            SocketLink(dial()).use { ds ->
+                                val dout = DataOutputStream(BufferedOutputStream(ds.output, 4096))
                                 FrameIO.writeJson(dout, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.DATA, deviceName = deviceName, session = session)))
-                                data(DataInputStream(BufferedInputStream(ds.getInputStream(), Protocol.STREAM_BUFFER)))
+                                data(DataInputStream(BufferedInputStream(ds.input, Protocol.STREAM_BUFFER)), "wifi")
                             }
                         }
                     }
@@ -136,9 +140,9 @@ class Receiver(
         }
     }
 
-    private suspend fun control(socket: Socket, inp: DataInputStream, hello: Hello, afterNeed: suspend (streams: Int) -> Unit = {}) {
+    private suspend fun control(link: Link, inp: DataInputStream, hello: Hello, afterNeed: suspend (streams: Int) -> Unit = {}) {
         if (sessionActive) throw ProtocolException("another session is active")
-        val out = DataOutputStream(BufferedOutputStream(socket.getOutputStream(), 64 * 1024))
+        val out = DataOutputStream(BufferedOutputStream(link.output, 64 * 1024))
         val manifest = wireJson.decodeFromString(TransferManifest.serializer(), FrameIO.readJson(inp, Protocol.Type.MANIFEST))
         val peerName = hello.deviceName.ifBlank { manifest.senderName }
 
@@ -187,7 +191,7 @@ class Receiver(
         onDropped(cause)
     }
 
-    private fun data(inp: DataInputStream) {
+    private fun data(inp: DataInputStream, kind: String = "wifi") {
         activeData.incrementAndGet()
         try {
             val buf = ByteArray(Protocol.CHUNK_SIZE.toInt())
@@ -202,8 +206,9 @@ class Receiver(
                         store.write(h.fileId, h.offset, buf, h.length)
                         val t2 = System.nanoTime()
                         stats?.add(h.fileId, h.length)
-                        stats?.addTime("net", t1 - t0)
+                        stats?.addTime(if (kind == "wifi") "net" else kind, t1 - t0)
                         stats?.addTime("write", t2 - t1)
+                        stats?.addBytes(kind, h.length)
                     }
                     else -> throw ProtocolException("unexpected frame ${h.type} on data stream")
                 }

@@ -22,6 +22,8 @@ data class Snapshot(
     val files: List<FileProgress>,
     /** Milliseconds spent per stage, summed across streams: "read" (disk), "net" (socket + TLS), "write" (disk). */
     val profileMs: Map<String, Long> = emptyMap(),
+    /** Bytes per link kind ("wifi", "usb"); more than one key means multipath was in effect. */
+    val bytesByKind: Map<String, Long> = emptyMap(),
 ) {
     val fraction: Float get() = if (bytesTotal == 0L) 1f else (bytesDone.toDouble() / bytesTotal).toFloat().coerceIn(0f, 1f)
 }
@@ -54,6 +56,14 @@ class TransferStats(entries: List<FileEntry>, skippedIds: Set<Int> = emptySet(),
     }
 
     private val stages = ConcurrentHashMap<String, AtomicLong>()
+    private val perKind = ConcurrentHashMap<String, AtomicLong>()
+
+    /** Bytes moved over each link kind ("wifi", "usb"), for the multipath breakdown. */
+    fun addBytes(kind: String, n: Int) {
+        if (n > 0) perKind.getOrPut(kind) { AtomicLong() }.addAndGet(n.toLong())
+    }
+
+    fun bytesByKind(): Map<String, Long> = perKind.entries.associate { it.key to it.value.get() }
 
     /** Accumulates time spent in a stage (nanoseconds), from any stream. */
     fun addTime(stage: String, nanos: Long) {
@@ -79,6 +89,6 @@ class TransferStats(entries: List<FileEntry>, skippedIds: Set<Int> = emptySet(),
             FileProgress(e.id, e.name, e.size, perFile[e.id]?.get()?.coerceAtMost(e.size) ?: 0L, e.id in skipped)
         }
         val profile = stages.entries.associate { it.key to it.value.get() / 1_000_000 }
-        return Snapshot(bytes, bytesTotal, ema, avg, eta, (elapsed * 1000).toLong(), streams, files, profile)
+        return Snapshot(bytes, bytesTotal, ema, avg, eta, (elapsed * 1000).toLong(), streams, files, profile, bytesByKind())
     }
 }

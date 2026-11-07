@@ -43,6 +43,8 @@ import app.barq.R
 import app.barq.TransferController
 import app.barq.TransferState
 import app.barq.web.PcSession
+import app.barq.net.usb.UsbSession
+import app.barq.service.TransferService
 import app.barq.data.Settings
 import app.barq.data.ThemeChoice
 import app.barq.ui.theme.BarqTheme
@@ -125,6 +127,16 @@ fun PermissionGate(content: @Composable () -> Unit) {
 fun BarqNav() {
     val nav = rememberNavController()
     val intake by TransferController.shareIntake.collectAsStateWithLifecycle()
+    // Cable: listen app-wide so an incoming USB transfer opens the cable screen from anywhere.
+    val ctx = LocalContext.current
+    LaunchedEffect(Unit) { TransferController.attachUsb(ctx) }
+    val tstate by TransferController.state.collectAsStateWithLifecycle()
+    LaunchedEffect(tstate) {
+        val s = tstate
+        val usbIncoming = (s is TransferState.AwaitingAccept && UsbSession.isConnected) ||
+            (s is TransferState.Running && s.band == "USB" && s.direction == Direction.RECEIVE)
+        if (usbIncoming && nav.currentDestination?.route == "home") nav.navigate("cable")
+    }
     LaunchedEffect(intake) {
         if (intake.isNotEmpty() && nav.currentDestination?.route != "send") {
             TransferController.reset()
@@ -141,7 +153,15 @@ fun BarqNav() {
                     if (s is TransferState.Running) nav.navigate(if (s.direction == Direction.SEND) "send" else "receive")
                 },
                 onPc = { nav.navigate("pc") },
+                onCable = { nav.navigate("cable") },
             )
+        }
+        composable("cable") {
+            CableScreen(onBack = { TransferController.reset(); nav.popBackStack("home", false) }, onPickFiles = { nav.navigate("usb_pick") })
+        }
+        composable("usb_pick") {
+            val ctx = LocalContext.current
+            PickerScreen(onBack = { nav.popBackStack() }, onDone = { files -> nav.popBackStack(); TransferService.start(ctx); TransferController.startUsbSend(ctx, files) })
         }
         composable("pc") {
             val shared by PcSession.shared.collectAsStateWithLifecycle()

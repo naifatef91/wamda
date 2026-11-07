@@ -280,7 +280,7 @@ fun SendScreen(onHome: () -> Unit) {
 // ---------- Transfer ----------
 
 @Composable
-private fun TransferView(direction: Direction, peer: String, band: String, snap: Snapshot, onCancel: () -> Unit) {
+fun TransferView(direction: Direction, peer: String, band: String, snap: Snapshot, onCancel: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
     val history = remember { mutableStateListOf<Float>() }
@@ -320,7 +320,8 @@ private fun TransferView(direction: Direction, peer: String, band: String, snap:
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 BarqChip(band, if (band == "2.4GHz") ChipTone.Warn else ChipTone.Ok)
                 BarqChip(stringResource(R.string.transfer_streams, snap.streams), ChipTone.Accent)
-                BarqChip("AES-256-GCM", ChipTone.Neutral)
+                if (snap.bytesByKind.size > 1) BarqChip(stringResource(R.string.cable_multipath), ChipTone.Ok)
+                else if (band != "USB") BarqChip("AES-256-GCM", ChipTone.Neutral)
             }
         }
 
@@ -355,7 +356,7 @@ private fun iconFor(name: String) = when (name.substringAfterLast('.', "").lower
 // ---------- Finished / Failed ----------
 
 @Composable
-private fun FinishedView(s: TransferState.Finished, onHome: () -> Unit, onMore: (() -> Unit)? = null) {
+fun FinishedView(s: TransferState.Finished, onHome: () -> Unit, onMore: (() -> Unit)? = null) {
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
     val skipped = s.snapshot.files.count { it.skipped }
@@ -418,7 +419,7 @@ private fun Stat(value: String, label: String, modifier: Modifier = Modifier, ti
 }
 
 @Composable
-private fun FailedView(message: String, retryable: Boolean, onHome: () -> Unit) {
+fun FailedView(message: String, retryable: Boolean, onHome: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val ctx = LocalContext.current
     Screen {
@@ -450,7 +451,7 @@ private fun FailedView(message: String, retryable: Boolean, onHome: () -> Unit) 
 // ---------- Small helpers ----------
 
 @Composable
-private fun Centered(content: @Composable () -> Unit) {
+fun Centered(content: @Composable () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
@@ -459,7 +460,7 @@ private fun Centered(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Spinner(label: String) {
+fun Spinner(label: String) {
     CircularProgressIndicator()
     if (label.isNotEmpty()) Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }

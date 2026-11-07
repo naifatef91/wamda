@@ -41,9 +41,9 @@ class SenderResult(val bytesSent: Long, val skippedFiles: List<Int>, val incompl
  */
 interface SenderTransport {
     /** The control connection; [writesHello] says whether this side must introduce itself on it. */
-    suspend fun control(): Socket
+    suspend fun control(): Link
     /** One more data connection, called once per stream after NEED. */
-    suspend fun data(): Socket
+    suspend fun data(): Link
     val writesHello: Boolean
 }
 
@@ -58,8 +58,8 @@ class DialTransport(
     private val address: java.net.InetAddress? = null,
 ) : SenderTransport {
     override val writesHello = true
-    override suspend fun control(): Socket = connect()
-    override suspend fun data(): Socket = connect()
+    override suspend fun control(): Link = SocketLink(connect())
+    override suspend fun data(): Link = SocketLink(connect())
 
     private fun connect(): Socket {
         val socket = network?.socketFactory?.createSocket() ?: Socket()
@@ -74,11 +74,11 @@ class DialTransport(
     }
 }
 
-/** Receiver dialed us (broadcast mode): control socket is ready, data sockets arrive on a channel. */
-class HostedTransport(private val controlSocket: Socket, private val dataSockets: Channel<Socket>) : SenderTransport {
+/** Receiver dialed us (broadcast mode): control link is ready, data links arrive on a channel. */
+class HostedTransport(private val controlLink: Link, private val dataLinks: Channel<Link>) : SenderTransport {
     override val writesHello = false
-    override suspend fun control(): Socket = controlSocket
-    override suspend fun data(): Socket = dataSockets.receive()
+    override suspend fun control(): Link = controlLink
+    override suspend fun data(): Link = dataLinks.receive()
 }
 
 class Sender(
@@ -87,6 +87,12 @@ class Sender(
     private val deviceName: String,
     private val items: List<SendItem>,
     private val onPlanned: (TransferStats, peerName: String) -> Unit,
+    /**
+     * Multipath: extra data links (for example over a USB cable) that join the same chunk
+     * queue beside the [transport]'s streams. Each gets its own worker; faster links simply
+     * take more chunks. The receiver must accept them with the same token.
+     */
+    private val extraLinks: List<suspend () -> Link> = emptyList(),
 ) {
     /** Phone-to-phone convenience constructor: dial the receiver. */
     constructor(
@@ -104,8 +110,8 @@ class Sender(
         )
 
         transport.control().use { control ->
-            val out = DataOutputStream(BufferedOutputStream(control.getOutputStream(), 64 * 1024))
-            val inp = DataInputStream(BufferedInputStream(control.getInputStream(), 64 * 1024))
+            val out = DataOutputStream(BufferedOutputStream(control.output, 64 * 1024))
+            val inp = DataInputStream(BufferedInputStream(control.input, 64 * 1024))
 
             if (transport.writesHello) {
                 FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.CONTROL, deviceName = deviceName)))
@@ -122,7 +128,7 @@ class Sender(
             }
             val stats = TransferStats(manifest.files, skipped.toSet(), prefilled)
             val streams = need.streams.coerceIn(1, Protocol.MAX_STREAMS)
-            stats.streams = streams
+            stats.streams = streams + extraLinks.size
             onPlanned(stats, need.receiverName)
 
             val queue = Channel<ChunkJob>(Channel.UNLIMITED)
@@ -135,7 +141,15 @@ class Sender(
             val sentBytes = java.util.concurrent.atomic.AtomicLong()
             coroutineScope {
                 repeat(streams) {
-                    launch { dataWorker(queue, stats, sentBytes) }
+                    launch { dataWorker(queue, stats, sentBytes) { transport.data() } }
+                }
+                // Multipath: one more worker per extra link; a link that fails to open is simply skipped.
+                extraLinks.forEach { open ->
+                    launch {
+                        try { dataWorker(queue, stats, sentBytes, open) } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                            android.util.Log.w("Wamda", "extra link worker ended: ${e.message}")
+                        }
+                    }
                 }
             }
 
@@ -145,13 +159,13 @@ class Sender(
         }
     }
 
-    private suspend fun dataWorker(queue: Channel<ChunkJob>, stats: TransferStats, sentBytes: java.util.concurrent.atomic.AtomicLong) {
+    private suspend fun dataWorker(queue: Channel<ChunkJob>, stats: TransferStats, sentBytes: java.util.concurrent.atomic.AtomicLong, openLink: suspend () -> Link) {
         val open = HashMap<Int, ReadableFile>()
         val buf = ByteArray(Protocol.CHUNK_SIZE.toInt())
         try {
-            transport.data().use { socket ->
-                val out = DataOutputStream(BufferedOutputStream(socket.getOutputStream(), Protocol.STREAM_BUFFER))
-                if (transport.writesHello) {
+            openLink().use { link ->
+                val out = DataOutputStream(BufferedOutputStream(link.output, Protocol.STREAM_BUFFER))
+                if (transport.writesHello || link.kind != "wifi") {
                     FrameIO.writeJson(out, Protocol.Type.HELLO, wireJson.encodeToString(Hello.serializer(), Hello(token = token, role = Protocol.Role.DATA, deviceName = deviceName)))
                 }
 
@@ -171,7 +185,8 @@ class Sender(
                     val t2 = System.nanoTime()
                     stats.add(job.fileId, len)
                     stats.addTime("read", t1 - t0)
-                    stats.addTime("net", t2 - t1)
+                    stats.addTime(if (link.kind == "wifi") "net" else link.kind, t2 - t1)
+                    stats.addBytes(link.kind, len)
                     sentBytes.addAndGet(len.toLong())
                 }
                 // SSLSocket has no half-close; close() flushes and sends close_notify.
