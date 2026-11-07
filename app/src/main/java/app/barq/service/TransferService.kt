@@ -27,6 +27,9 @@ import kotlinx.coroutines.launch
 class TransferService : LifecycleService() {
     private var wakeLock: PowerManager.WakeLock? = null
 
+    /** The real artwork for the expanded notification; the status bar keeps the monochrome silhouette. */
+    private val largeIcon by lazy { android.graphics.BitmapFactory.decodeResource(resources, R.drawable.ic_launcher_art) }
+
     override fun onCreate() {
         super.onCreate()
         startForeground(NOTIF_ID, build(getString(R.string.notif_running), null), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -65,6 +68,8 @@ class TransferService : LifecycleService() {
         )
         return NotificationCompat.Builder(this, BarqApp.CHANNEL_TRANSFERS)
             .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(largeIcon)
+            .setColor(0xFF5FE3C2.toInt())
             .setContentTitle(getString(R.string.app_name))
             .setContentText(text)
             .setContentIntent(open)
