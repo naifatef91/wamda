@@ -3,6 +3,7 @@ package app.barq.web
 import android.content.Context
 import android.util.Log
 import app.barq.data.PickedFile
+import app.barq.data.Settings
 import app.barq.net.WifiDirectHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,9 +67,14 @@ object PcSession {
                 _state.value = PcState.Starting
                 _uploaded.value = emptyList()
                 try {
+                    val prefs = Settings.get(app).state.value
                     val h = WifiDirectHost(app)
                     host = h
-                    val g = h.start(prefer5GHz = true)
+                    // 2.4GHz by default: every laptop can see it; 5GHz is opt-in from the screen.
+                    val g = h.start(
+                        band = if (prefs.pc5GHz) WifiDirectHost.Band.PREFER_5GHZ else WifiDirectHost.Band.GHZ2,
+                        suffix = prefs.pcSuffix, passphrase = prefs.pcPassword,
+                    )
                     group = g
                     val s = HttpServer(
                         context = app,
@@ -96,6 +102,18 @@ object PcSession {
     /** Replaces the set of files offered for download. Safe to call at any time. */
     fun setShared(files: List<PickedFile>) {
         _shared.value = files
+    }
+
+    /** Applies new network settings: tears down and brings the group back up. */
+    fun restart(context: Context) {
+        val app = context.applicationContext
+        scope.launch {
+            lock.withLock {
+                tearDown()
+                _state.value = PcState.Idle
+            }
+            start(app)
+        }
     }
 
     /** Stops the server and removes the Wi-Fi Direct group. */

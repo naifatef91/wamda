@@ -16,6 +16,10 @@ data class BarqSettings(
     val prefer5GHz: Boolean,
     val trustedDevices: List<String>,
     val theme: ThemeChoice,
+    /** PC mode network: stable 2-char SSID suffix, simple password (8–63 chars), band. */
+    val pcSuffix: String,
+    val pcPassword: String,
+    val pc5GHz: Boolean,
 )
 
 /** User preferences, SharedPreferences-backed, exposed as one StateFlow. */
@@ -38,6 +42,9 @@ class Settings private constructor(context: Context) {
             .putBoolean(K_5G, next.prefer5GHz)
             .putStringSet(K_TRUST, next.trustedDevices.toSet())
             .putString(K_THEME, next.theme.name)
+            .putString(K_PC_SUFFIX, next.pcSuffix)
+            .putString(K_PC_PASS, next.pcPassword)
+            .putBoolean(K_PC_5G, next.pc5GHz)
             .apply()
         _state.value = next
     }
@@ -53,7 +60,14 @@ class Settings private constructor(context: Context) {
         prefer5GHz = prefs.getBoolean(K_5G, true),
         trustedDevices = prefs.getStringSet(K_TRUST, emptySet())!!.sorted(),
         theme = runCatching { ThemeChoice.valueOf(prefs.getString(K_THEME, null) ?: "") }.getOrDefault(ThemeChoice.SYSTEM),
+        pcSuffix = prefs.getString(K_PC_SUFFIX, null)?.takeIf { it.length == 2 } ?: randomSuffix().also { prefs.edit().putString(K_PC_SUFFIX, it).apply() },
+        pcPassword = prefs.getString(K_PC_PASS, null)?.takeIf { it.length in 8..63 } ?: randomDigits().also { prefs.edit().putString(K_PC_PASS, it).apply() },
+        pc5GHz = prefs.getBoolean(K_PC_5G, false),
     )
+
+    /** Eight digits: easy to read off the screen and type on a laptop. */
+    private fun randomDigits(): String = (1..8).map { ('0'..'9').random() }.joinToString("")
+    private fun randomSuffix(): String = (1..2).map { "ABCDEFGHJKMNPQRSTUVWXYZ23456789".random() }.joinToString("")
 
     companion object {
         private const val K_NAME = "device_name"
@@ -62,6 +76,9 @@ class Settings private constructor(context: Context) {
         private const val K_5G = "prefer_5ghz"
         private const val K_TRUST = "trusted_devices"
         private const val K_THEME = "theme"
+        private const val K_PC_SUFFIX = "pc_suffix"
+        private const val K_PC_PASS = "pc_password"
+        private const val K_PC_5G = "pc_5ghz"
 
         @Volatile private var instance: Settings? = null
         fun get(context: Context): Settings =

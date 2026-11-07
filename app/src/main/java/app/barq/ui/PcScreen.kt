@@ -124,10 +124,7 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
                 Text(stringResource(R.string.pc_step1_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                 CopyRow(label = stringResource(R.string.pc_ssid), value = s.ssid)
                 CopyRow(label = stringResource(R.string.pc_password), value = s.pass)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val good = s.band != "2.4GHz"
-                    BarqChip(s.band, if (good) ChipTone.Ok else ChipTone.Warn, leading = BarqIcons.Wifi)
-                }
+                PcOptions(band = s.band)
             }
         }
 

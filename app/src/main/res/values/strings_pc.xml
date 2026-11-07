@@ -7,7 +7,11 @@
     <string name="pc_retry">إعادة المحاولة</string>
 
     <string name="pc_step1">1. وصّل الكمبيوتر بشبكة Wi-Fi</string>
-    <string name="pc_step1_hint">اختر هذه الشبكة من قائمة شبكات Wi-Fi في الكمبيوتر وأدخل كلمة المرور</string>
+    <string name="pc_step1_hint">اختر هذه الشبكة من قائمة شبكات Wi-Fi في الكمبيوتر وأدخل كلمة المرور. الشبكة وكلمة المرور ثابتتان، فسيتذكرهما الكمبيوتر في المرة القادمة.</string>
+    <string name="pc_use_5ghz">استخدام 5GHz</string>
+    <string name="pc_use_5ghz_hint">أسرع، لكن بعض الحواسيب لا ترى شبكات 5GHz. إن لم تظهر الشبكة أبقه مطفأً.</string>
+    <string name="pc_change_password">تغيير كلمة المرور</string>
+    <string name="pc_password_rule">من 8 إلى 63 حرفًا أو رقمًا لاتينيًا</string>
     <string name="pc_ssid">اسم الشبكة</string>
     <string name="pc_password">كلمة المرور</string>
     <string name="pc_copy">نسخ</string>

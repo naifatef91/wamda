@@ -31,12 +31,22 @@ class WifiDirectHost(context: Context) {
     private val channel: WifiP2pManager.Channel = manager.initialize(context, Looper.getMainLooper(), null)
 
     @SuppressLint("MissingPermission")
-    suspend fun start(prefer5GHz: Boolean = true): GroupInfo {
+    enum class Band { PREFER_5GHZ, AUTO, GHZ2 }
+
+    /**
+     * [band]: PREFER_5GHZ tries 5GHz then falls back; GHZ2 forces 2.4GHz (every laptop can see it).
+     * [suffix] (2 alphanumerics) and [passphrase] (8–63 ASCII chars) make the network stable
+     * across sessions so a computer can remember it; null = random each time.
+     */
+    suspend fun start(band: Band = Band.PREFER_5GHZ, suffix: String? = null, passphrase: String? = null): GroupInfo {
         removeGroup()
         delay(300)
-        val ok = (prefer5GHz && createGroup(WifiP2pConfig.GROUP_OWNER_BAND_5GHZ)) || run {
-            if (prefer5GHz) delay(500)
-            createGroup(WifiP2pConfig.GROUP_OWNER_BAND_AUTO)
+        val sfx = suffix?.takeIf { it.length == 2 && it.all(Char::isLetterOrDigit) } ?: randomAlnum(2)
+        val pass = passphrase?.takeIf { it.length in 8..63 && it.all { ch -> ch.code in 32..126 } } ?: randomAlnum(10)
+        val ok = when (band) {
+            Band.GHZ2 -> createGroup(WifiP2pConfig.GROUP_OWNER_BAND_2GHZ, sfx, pass) || run { delay(500); createGroup(WifiP2pConfig.GROUP_OWNER_BAND_AUTO, sfx, pass) }
+            Band.AUTO -> createGroup(WifiP2pConfig.GROUP_OWNER_BAND_AUTO, sfx, pass)
+            Band.PREFER_5GHZ -> createGroup(WifiP2pConfig.GROUP_OWNER_BAND_5GHZ, sfx, pass) || run { delay(500); createGroup(WifiP2pConfig.GROUP_OWNER_BAND_AUTO, sfx, pass) }
         }
         if (!ok) throw IOException("Could not create Wi-Fi Direct group")
 
@@ -55,11 +65,10 @@ class WifiDirectHost(context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun createGroup(band: Int): Boolean = suspendCancellableCoroutine { cont ->
-        val suffix = randomAlnum(2)
+    private suspend fun createGroup(band: Int, suffix: String, passphrase: String): Boolean = suspendCancellableCoroutine { cont ->
         val config = WifiP2pConfig.Builder()
             .setNetworkName("DIRECT-$suffix-Wamda")
-            .setPassphrase(randomAlnum(10))
+            .setPassphrase(passphrase)
             .setGroupOperatingBand(band)
             .build()
         manager.createGroup(channel, config, object : WifiP2pManager.ActionListener {

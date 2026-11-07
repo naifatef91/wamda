@@ -100,7 +100,7 @@ object TransferController {
                 _state.value = TransferState.Preparing(TransferState.Step.HOTSPOT)
                 val settings = Settings.get(app)
                 val h = WifiDirectHost(app).also { host = it }
-                val group = h.start(prefer5GHz = settings.state.value.prefer5GHz)
+                val group = h.start(if (settings.state.value.prefer5GHz) WifiDirectHost.Band.PREFER_5GHZ else WifiDirectHost.Band.AUTO)
                 val token = (100000 + (Math.random() * 900000).toInt()).toString()
                 val identity = Tls.identity()
                 val qr = QrPayload(

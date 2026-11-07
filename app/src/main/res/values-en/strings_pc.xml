@@ -7,6 +7,10 @@
     <string name="pc_retry">Retry</string>
 
     <string name="pc_step1">1. Connect the computer to Wi-Fi</string>
+    <string name="pc_use_5ghz">Use 5GHz</string>
+    <string name="pc_use_5ghz_hint">Faster, but some computers cannot see 5GHz networks. Leave it off if the network does not appear.</string>
+    <string name="pc_change_password">Change password</string>
+    <string name="pc_password_rule">8 to 63 Latin letters or digits</string>
     <string name="pc_step1_hint">Pick this network in the computer\'s Wi-Fi list and enter the password</string>
     <string name="pc_ssid">Network</string>
     <string name="pc_password">Password</string>
