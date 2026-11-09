@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -104,49 +108,22 @@ fun PcScreen(onBack: () -> Unit, onPickFiles: () -> Unit, shared: List<PickedFil
 private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Unit, onStop: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
-    val qr = remember(s.url) { qrBitmap(s.url, sizePx = 512) }
+    // Which way the computer connects: 0 = Wi-Fi (always the starting choice), 1 = USB cable.
+    var tab by rememberSaveable { mutableIntStateOf(0) }
 
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PcConnectionCard(s)
-        PcUsbCard(s.usb)
+        PcConnectionCard(s.stats.lastSeenMs, s.stats.lastClientAddress)
 
-        // Step 1: join the network
-        BarqCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.pc_step1), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(stringResource(R.string.pc_step1_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
-                CopyRow(label = stringResource(R.string.pc_ssid), value = s.ssid)
-                CopyRow(label = stringResource(R.string.pc_password), value = s.pass)
-                PcOptions(band = s.band)
-            }
-        }
+        PcTabs(tab, listOf(stringResource(R.string.pc_tab_wifi), stringResource(R.string.pc_usb_title))) { tab = it }
 
-        // Step 2: open the URL
-        BarqCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.pc_step2), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth())
-                Text(stringResource(R.string.pc_step2_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
-                Text(
-                    s.url,
-                    style = MaterialTheme.typography.headlineSmall, fontFamily = FontFamily.Monospace, color = c.primary,
-                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                )
-                Box(
-                    Modifier.fillMaxWidth(0.6f).aspectRatio(1f).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(12.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Image(qr.asImageBitmap(), contentDescription = s.url, Modifier.fillMaxSize()) }
-            }
-        }
+        if (tab == 0) WifiPanel(s.ssid, s.pass, s.band, s.url) else PcUsbCard(s.usb)
 
-        // Stats
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PcStatTile(formatBytes(s.stats.bytesServed), stringResource(R.string.pc_stats_served), Modifier.weight(1f))
-            PcStatTile(formatBytes(s.stats.bytesReceived), stringResource(R.string.pc_stats_received), Modifier.weight(1f), accent = true)
-            PcStatTile(s.stats.lastClientAddress ?: "—", stringResource(R.string.pc_stats_client), Modifier.weight(1f), mono = true)
-        }
+        // What is happening now
+        Text(stringResource(R.string.pc_activity), style = MaterialTheme.typography.titleSmall, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
+        LiveStats(s.stats.bytesServed, s.stats.bytesReceived, s.stats.lastClientAddress)
         if (s.uploadedCount > 0) {
             PcReceivedList(s.uploadedNames)
         } else if (s.stats.lastClientAddress == null) {
@@ -154,13 +131,84 @@ private fun ReadyBody(s: PcState.Ready, sharedCount: Int, onPickFiles: () -> Uni
         }
 
         // Share + stop
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         BarqButton(
             if (sharedCount > 0) stringResource(R.string.pc_share_count, sharedCount) else stringResource(R.string.pc_share),
             onClick = onPickFiles, leading = BarqIcons.ArrowUp,
         )
         Text(stringResource(R.string.pc_shared_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        BarqButton(stringResource(R.string.pc_stop), onClick = onStop, kind = ButtonKind.Outlined, height = 52)
+        TextButton(onClick = onStop, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(stringResource(R.string.pc_stop), color = c.error) }
+    }
+}
+
+/** Two-way switch between the connection methods. */
+@Composable
+private fun PcTabs(selected: Int, labels: List<String>, onSelect: (Int) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceVariant.copy(alpha = 0.5f)).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        labels.forEachIndexed { i, label ->
+            val on = i == selected
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
+                    .background(if (on) c.surface else Color.Transparent)
+                    .selectable(selected = on, role = Role.Tab, onClick = { onSelect(i) })
+                    .padding(vertical = 11.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = if (on) c.primary else c.onSurfaceVariant, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+}
+
+/** Wi-Fi route: join the network, open the address. Takes plain values so it only redraws when they change. */
+@Composable
+private fun WifiPanel(ssid: String, pass: String, band: String, url: String) {
+    val c = MaterialTheme.colorScheme
+    val qr = remember(url) { qrBitmap(url, sizePx = 512) }
+    var options by rememberSaveable { mutableStateOf(false) }
+
+    BarqCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(stringResource(R.string.pc_step1), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.pc_step1_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+            CopyRow(label = stringResource(R.string.pc_ssid), value = ssid)
+            CopyRow(label = stringResource(R.string.pc_password), value = pass)
+            TextButton(onClick = { options = !options }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                Text(stringResource(R.string.pc_options), color = c.primary)
+            }
+            if (options) PcOptions(band = band)
+        }
+    }
+
+    BarqCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.pc_step2), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(url, style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, color = c.primary)
+                Text(stringResource(R.string.pc_step2_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+            }
+            Box(
+                Modifier.size(132.dp).clip(RoundedCornerShape(14.dp)).background(Color.White).padding(8.dp),
+                contentAlignment = Alignment.Center,
+            ) { Image(qr.asImageBitmap(), contentDescription = url, Modifier.fillMaxSize()) }
+        }
+    }
+}
+
+/** The three live numbers; separate from the rest so a transfer only redraws this row. */
+@Composable
+private fun LiveStats(served: Long, received: Long, client: String?) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        PcStatTile(formatBytes(served), stringResource(R.string.pc_stats_served), Modifier.weight(1f))
+        PcStatTile(formatBytes(received), stringResource(R.string.pc_stats_received), Modifier.weight(1f), accent = true)
+        PcStatTile(client ?: "—", stringResource(R.string.pc_stats_client), Modifier.weight(1f), mono = true)
     }
 }
 

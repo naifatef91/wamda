@@ -92,7 +92,9 @@ object PcSession {
                     publish()
                     statsJob = scope.launch {
                         // Re-publish Ready whenever stats, shared list or uploads change.
-                        launch { s.stats.collect { publish() } }
+                        // Stats change on every 64 KiB served; publishing each one made the whole screen recompose
+                        // hundreds of times a second during a transfer. Coalesce to four updates a second.
+                        launch { s.stats.collect { publish(); kotlinx.coroutines.delay(250) } }
                         launch { _shared.collect { publish() } }
                         launch { _uploaded.collect { publish() } }
                         // Poll the USB tethering interface; it appears when the user toggles tethering on.

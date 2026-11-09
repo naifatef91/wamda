@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="upd_section">Updates</string>
+    <string name="upd_title">App update</string>
+    <string name="upd_idle">Version %1$s · tap Check to look for an update on Google Play</string>
+    <string name="upd_checking">Checking Google Play…</string>
+    <string name="upd_uptodate">You have the latest version (%1$s)</string>
+    <string name="upd_available">A newer version is available on Google Play</string>
+    <string name="upd_downloading">Downloading the update… %1$d%%</string>
+    <string name="upd_downloaded">Download finished. Tap Restart to install it</string>
+    <string name="upd_not_play">This copy was not installed from Google Play, so whoever gave it to you updates it</string>
+    <string name="upd_failed">Could not check for updates. Try again later</string>
+    <string name="upd_check">Check</string>
+    <string name="upd_update">Update</string>
+    <string name="upd_install">Restart</string>
+</resources>

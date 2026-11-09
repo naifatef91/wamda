@@ -47,4 +47,7 @@
     <string name="pc_usb_state_starting">بانتظار الكمبيوتر ليحصل على عنوان الشبكة…</string>
     <string name="pc_usb_windows">على Windows 11 (الإصدار 24H2 فأحدث) يظهر الربط بتعريف NCM تلقائيًا. إن لم يظهر الاتصال بعد ثوانٍ فأعد توصيل الكابل.</string>
     <string name="pc_usb_settings_failed">تعذّر فتح إعدادات الربط تلقائيًا، افتحها من إعدادات الهاتف يدويًا</string>
+    <string name="pc_tab_wifi">عبر Wi-Fi</string>
+    <string name="pc_options">خيارات الشبكة</string>
+    <string name="pc_activity">النشاط</string>
 </resources>

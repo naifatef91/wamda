@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="upd_section">التحديثات</string>
+    <string name="upd_title">تحديث التطبيق</string>
+    <string name="upd_idle">الإصدار %1$s · اضغط «تحقق» للبحث عن تحديث على Google Play</string>
+    <string name="upd_checking">جارٍ التحقق من Google Play…</string>
+    <string name="upd_uptodate">أنت على أحدث إصدار (%1$s)</string>
+    <string name="upd_available">يتوفر إصدار أحدث على Google Play</string>
+    <string name="upd_downloading">جارٍ تنزيل التحديث… %1$d٪</string>
+    <string name="upd_downloaded">اكتمل التنزيل. اضغط «أعد التشغيل» لتثبيته</string>
+    <string name="upd_not_play">هذه النسخة لم تُثبَّت من Google Play، لذا يتولى التحديثَ مصدرُها</string>
+    <string name="upd_failed">تعذّر التحقق من التحديث. جرّب لاحقاً</string>
+    <string name="upd_check">تحقق</string>
+    <string name="upd_update">حدّث</string>
+    <string name="upd_install">أعد التشغيل</string>
+</resources>

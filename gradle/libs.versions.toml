@@ -10,6 +10,7 @@ coroutines = "1.10.2"
 serialization = "1.8.1"
 zxingCore = "3.5.3"
 zxingEmbedded = "4.3.0"
+playAppUpdate = "2.1.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version = "4.13.2" }
@@ -26,6 +27,7 @@ androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-s
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxingCore" }
+play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 zxing-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
 
 [plugins]

@@ -37,18 +37,18 @@ import app.barq.web.PcSession
 
 /** Live link status: the browser polls every 2 s, so a request in the last 8 s means the computer is connected. */
 @Composable
-fun PcConnectionCard(s: app.barq.web.PcState.Ready) {
+fun PcConnectionCard(lastSeenMs: Long, lastClient: String?) {
     val c = MaterialTheme.colorScheme
     val x = app.barq.ui.theme.LocalBarqExtras.current
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     androidx.compose.runtime.LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(1000); now = System.currentTimeMillis() } }
-    val connected = s.stats.lastSeenMs > 0 && now - s.stats.lastSeenMs < 8_000
+    val connected = lastSeenMs > 0 && now - lastSeenMs < 8_000
     BarqCard(Modifier.fillMaxWidth(), tint = if (connected) x.okSoft else null) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconBadge(if (connected) BarqIcons.Check else BarqIcons.Wifi, if (connected) x.ok else c.primaryContainer, if (connected) c.surface else c.primary)
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (connected) stringResource(R.string.pc_connected, s.stats.lastClientAddress ?: "") else stringResource(R.string.pc_waiting),
+                    if (connected) stringResource(R.string.pc_connected, lastClient ?: "") else stringResource(R.string.pc_waiting),
                     style = MaterialTheme.typography.titleMedium, color = if (connected) x.ok else c.onSurface,
                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )

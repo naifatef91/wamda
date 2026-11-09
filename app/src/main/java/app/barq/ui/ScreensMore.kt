@@ -290,6 +290,9 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 }
             }
 
+            item { SectionHeader(stringResource(R.string.upd_section)) }
+            item { UpdateCard() }
+
             item { SectionHeader(stringResource(R.string.settings_about_section)) }
             item {
                 BarqCard(Modifier.fillMaxWidth()) {

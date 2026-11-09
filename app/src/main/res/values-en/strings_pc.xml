@@ -47,4 +47,7 @@
     <string name="pc_usb_state_starting">Waiting for the computer to get a network address…</string>
     <string name="pc_usb_windows">On Windows 11 (24H2 or later) the link appears with an NCM driver automatically. If the connection does not show up after a few seconds, reconnect the cable.</string>
     <string name="pc_usb_settings_failed">Could not open the tethering settings automatically; open them from the phone settings</string>
+    <string name="pc_tab_wifi">Over Wi-Fi</string>
+    <string name="pc_options">Network options</string>
+    <string name="pc_activity">Activity</string>
 </resources>
