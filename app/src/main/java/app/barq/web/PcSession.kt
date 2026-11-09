@@ -29,8 +29,8 @@ sealed class PcState {
         val sharedCount: Int,
         val uploadedCount: Int,
         val uploadedNames: List<String> = emptyList(),
-        /** URL on the USB tethering link, when the user turned tethering on. */
-        val usbUrl: String? = null,
+        /** Where the USB-cable route to a computer stands, with its link once tethering is on. */
+        val usb: UsbTether.Status = UsbTether.Status(),
     ) : PcState()
     data class Failed(val message: String) : PcState()
 }
@@ -60,7 +60,7 @@ object PcSession {
     private var server: HttpServer? = null
     private var statsJob: Job? = null
     private var group: WifiDirectHost.GroupInfo? = null
-    @Volatile private var usbIp: String? = null
+    @Volatile private var usbStatus: UsbTether.Status = UsbTether.Status()
 
     /** Starts the group and the server. No-op when already starting or ready. */
     fun start(context: Context) {
@@ -98,8 +98,8 @@ object PcSession {
                         // Poll the USB tethering interface; it appears when the user toggles tethering on.
                         launch {
                             while (true) {
-                                val ip = UsbTether.phoneIp()
-                                if (ip != usbIp) { usbIp = ip; publish() }
+                                val st = UsbTether.status(app)
+                                if (st != usbStatus) { usbStatus = st; publish() }
                                 kotlinx.coroutines.delay(2_000)
                             }
                         }
@@ -152,7 +152,7 @@ object PcSession {
             sharedCount = _shared.value.size,
             uploadedCount = _uploaded.value.size,
             uploadedNames = _uploaded.value,
-            usbUrl = usbIp?.let { "http://$it:${HttpServer.PORT}" },
+            usb = usbStatus,
         )
     }
 
@@ -161,6 +161,6 @@ object PcSession {
         runCatching { server?.stop() }; server = null
         runCatching { host?.stop() }; host = null
         group = null
-        usbIp = null
+        usbStatus = UsbTether.Status()
     }
 }

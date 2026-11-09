@@ -194,4 +194,11 @@
     <string name="orphan_hint">تحجز %1$s. تُحذف تلقائيًا بعد 7 أيام</string>
     <string name="orphan_delete">حذف الملفات غير المكتملة</string>
     <string name="orphan_confirm">سيُحذف %1$d ملف غير مكتمل (%2$s) ولا يمكن استكمال نقلها بعد ذلك. الملفات المكتملة لا تتأثر.</string>
+    <string name="settings_version">الإصدار</string>
+    <string name="dev_section">خيارات المطورين</string>
+    <string name="dev_experimental">ميزات تجريبية</string>
+    <string name="dev_experimental_hint">البث لعدة أجهزة والنقل بالكابل بين هاتفين. لم تُختبر على كل الأجهزة بعد</string>
+    <string name="dev_unlocked">فُعّلت خيارات المطورين</string>
+    <string name="dev_already">خيارات المطورين مفعّلة بالفعل</string>
+    <string name="dev_taps_left">بقيت %1$d نقرات لتفعيل خيارات المطورين</string>
 </resources>

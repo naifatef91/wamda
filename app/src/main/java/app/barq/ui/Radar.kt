@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.barq.R
 import app.barq.engine.QrPayload
 import app.barq.crypto.Tls
+import app.barq.FeatureFlags
 import app.barq.data.Settings
 import app.barq.net.BleScanner
 import app.barq.net.PairingDeclined
@@ -162,7 +163,9 @@ fun DiscoverScreen(
         Spacer(Modifier.weight(1f))
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             BarqButton(stringResource(R.string.send_scan), onScanQr, kind = ButtonKind.Tonal, leading = BarqIcons.Qr)
-            BarqButton(stringResource(R.string.broadcast_title), onBroadcast, kind = ButtonKind.Outlined, height = 52, leading = BarqIcons.ArrowUpRight)
+            if (FeatureFlags.broadcast(Settings.get(ctx).state.collectAsStateWithLifecycle().value)) {
+                BarqButton(stringResource(R.string.broadcast_title), onBroadcast, kind = ButtonKind.Outlined, height = 52, leading = BarqIcons.ArrowUpRight)
+            }
         }
     }
 }

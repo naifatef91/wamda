@@ -15,9 +15,6 @@
     <string name="pc_received_title">وصل من الكمبيوتر: %1$d ملف</string>
     <string name="pc_received_hint">محفوظة في Download/Wamda</string>
     <string name="pc_usb_title">عبر كابل USB-C</string>
-    <string name="pc_usb_on">الكمبيوتر متصل بالكابل. افتح هذا الرابط في متصفحه، دون أي شبكة Wi-Fi.</string>
-    <string name="pc_usb_off">بديل بلا Wi-Fi: وصّل الهاتف بالكمبيوتر بالكابل وفعّل «الربط عبر USB» من إعدادات الهاتف، فيظهر الرابط هنا.</string>
-    <string name="pc_usb_steps">الإعدادات ← الاتصال والمشاركة (أو الشبكة والإنترنت) ← نقطة الاتصال والربط ← الربط عبر USB. الكمبيوتر يتعرف على الهاتف كبطاقة شبكة دون تعريفات إضافية.</string>
     <string name="pc_usb_open_settings">فتح إعدادات الربط</string>
     <string name="pc_use_5ghz">استخدام 5GHz</string>
     <string name="pc_use_5ghz_hint">أسرع، لكن بعض الحواسيب لا ترى شبكات 5GHz. إن لم تظهر الشبكة أبقه مطفأً.</string>
@@ -40,4 +37,14 @@
     <string name="pc_share_count">مشاركة ملفات (%1$d)</string>
     <string name="pc_shared_hint">الملفات التي تختارها تظهر في متصفح الكمبيوتر للتنزيل</string>
     <string name="pc_stop">إيقاف والعودة</string>
+    <string name="pc_usb_ready_hint">تم اكتشاف الربط عبر USB. افتح هذا الرابط في متصفح الكمبيوتر أو امسح الكود، دون أي شبكة Wi-Fi</string>
+    <string name="pc_usb_step_cable">وصّل الهاتف بالكمبيوتر بكابل USB-C يدعم نقل البيانات</string>
+    <string name="pc_usb_step_mode">اسحب شريط الإشعارات واضغط إشعار USB ثم اختر «نقل الملفات»</string>
+    <string name="pc_usb_step_tether">افتح إعدادات الربط وفعّل «الربط عبر USB»</string>
+    <string name="pc_usb_state_none">لم يُكتشف كابل بعد</string>
+    <string name="pc_usb_state_cable">الكابل متصل. اختر وضع «نقل الملفات» ثم فعّل الربط عبر USB؛ يكون المفتاح رماديًا قبل ذلك على بعض الهواتف</string>
+    <string name="pc_usb_state_files">الكابل متصل بوضع نقل الملفات. فعّل الآن «الربط عبر USB» من إعدادات الربط</string>
+    <string name="pc_usb_state_starting">بانتظار الكمبيوتر ليحصل على عنوان الشبكة…</string>
+    <string name="pc_usb_windows">على Windows 11 (الإصدار 24H2 فأحدث) يظهر الربط بتعريف NCM تلقائيًا. إن لم يظهر الاتصال بعد ثوانٍ فأعد توصيل الكابل.</string>
+    <string name="pc_usb_settings_failed">تعذّر فتح إعدادات الربط تلقائيًا، افتحها من إعدادات الهاتف يدويًا</string>
 </resources>

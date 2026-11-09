@@ -14,9 +14,6 @@
     <string name="pc_received_title">Received from the computer: %1$d files</string>
     <string name="pc_received_hint">Saved in Download/Wamda</string>
     <string name="pc_usb_title">Over a USB-C cable</string>
-    <string name="pc_usb_on">The computer is connected over the cable. Open this link in its browser, no Wi-Fi needed.</string>
-    <string name="pc_usb_off">No-Wi-Fi alternative: connect the phone to the computer with the cable and turn on «USB tethering» in the phone settings; the link appears here.</string>
-    <string name="pc_usb_steps">Settings → Connection &amp; sharing (or Network &amp; internet) → Hotspot &amp; tethering → USB tethering. The computer sees the phone as a network adapter with built-in drivers.</string>
     <string name="pc_usb_open_settings">Open tethering settings</string>
     <string name="pc_use_5ghz">Use 5GHz</string>
     <string name="pc_use_5ghz_hint">Faster, but some computers cannot see 5GHz networks. Leave it off if the network does not appear.</string>
@@ -40,4 +37,14 @@
     <string name="pc_share_count">Share files (%1$d)</string>
     <string name="pc_shared_hint">Files you pick here show up in the computer\'s browser for download</string>
     <string name="pc_stop">Stop and go back</string>
+    <string name="pc_usb_ready_hint">USB tethering detected. Open this link in the computer\'s browser or scan the code, no Wi-Fi needed</string>
+    <string name="pc_usb_step_cable">Connect the phone to the computer with a USB-C cable that carries data</string>
+    <string name="pc_usb_step_mode">Pull down the notification shade, tap the USB notification and choose File transfer</string>
+    <string name="pc_usb_step_tether">Open the tethering settings and turn on USB tethering</string>
+    <string name="pc_usb_state_none">No cable detected yet</string>
+    <string name="pc_usb_state_cable">Cable connected. Choose File transfer mode, then turn on USB tethering; on some phones the switch stays grey until you do</string>
+    <string name="pc_usb_state_files">Cable connected in File transfer mode. Now turn on USB tethering in the tethering settings</string>
+    <string name="pc_usb_state_starting">Waiting for the computer to get a network address…</string>
+    <string name="pc_usb_windows">On Windows 11 (24H2 or later) the link appears with an NCM driver automatically. If the connection does not show up after a few seconds, reconnect the cable.</string>
+    <string name="pc_usb_settings_failed">Could not open the tethering settings automatically; open them from the phone settings</string>
 </resources>

@@ -45,6 +45,7 @@ import app.barq.TransferState
 import app.barq.web.PcSession
 import app.barq.net.usb.UsbSession
 import app.barq.service.TransferService
+import app.barq.FeatureFlags
 import app.barq.data.Settings
 import app.barq.data.ThemeChoice
 import app.barq.ui.theme.BarqTheme
@@ -138,13 +139,14 @@ fun BarqNav() {
     val intake by TransferController.shareIntake.collectAsStateWithLifecycle()
     // Cable: listen app-wide so an incoming USB transfer opens the cable screen from anywhere.
     val ctx = LocalContext.current
-    LaunchedEffect(Unit) { TransferController.attachUsb(ctx) }
+    val cableOn = FeatureFlags.phoneCable(Settings.get(ctx).state.collectAsStateWithLifecycle().value)
+    LaunchedEffect(cableOn) { if (cableOn) TransferController.attachUsb(ctx) }
     val tstate by TransferController.state.collectAsStateWithLifecycle()
     LaunchedEffect(tstate) {
         val s = tstate
         val usbIncoming = (s is TransferState.AwaitingAccept && UsbSession.isConnected) ||
             (s is TransferState.Running && s.band == "USB" && s.direction == Direction.RECEIVE)
-        if (usbIncoming && nav.currentDestination?.route == "home") nav.navigate("cable")
+        if (cableOn && usbIncoming && nav.currentDestination?.route == "home") nav.navigate("cable")
     }
     LaunchedEffect(intake) {
         if (intake.isNotEmpty() && nav.currentDestination?.route != "send") {

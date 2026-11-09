@@ -14,6 +14,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,41 +80,86 @@ fun PcReceivedList(names: List<String>) {
     }
 }
 
-/** USB-C to the computer: same page over USB tethering; shows the link when tethering is on, else how to turn it on. */
+/**
+ * USB-C to the computer: the same page over USB tethering. Walks the user through the three things that
+ * have to happen (cable, file-transfer mode, tethering switch), highlights the first one still open from
+ * what the phone can see, and shows the link and its QR code as soon as the tethering interface has an address.
+ */
 @Composable
-fun PcUsbCard(usbUrl: String?) {
+fun PcUsbCard(usb: app.barq.web.UsbTether.Status) {
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val x = app.barq.ui.theme.LocalBarqExtras.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-    BarqCard(Modifier.fillMaxWidth(), tint = if (usbUrl != null) x.okSoft else null) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val stage = usb.stage
+    val ready = stage == app.barq.web.UsbTether.Stage.READY
+    val settingsFailed = stringResource(R.string.pc_usb_settings_failed)
+    BarqCard(Modifier.fillMaxWidth(), tint = if (ready) x.okSoft else null) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBadge(BarqIcons.Next, if (usbUrl != null) x.ok else c.primaryContainer, if (usbUrl != null) c.surface else c.primary)
+                IconBadge(BarqIcons.Usb, if (ready) x.ok else c.primaryContainer, if (ready) c.surface else c.primary)
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.pc_usb_title), style = MaterialTheme.typography.titleMedium, color = if (usbUrl != null) x.ok else c.onSurface)
+                    Text(stringResource(R.string.pc_usb_title), style = MaterialTheme.typography.titleMedium, color = if (ready) x.ok else c.onSurface)
                     Text(
-                        stringResource(if (usbUrl != null) R.string.pc_usb_on else R.string.pc_usb_off),
+                        stringResource(
+                            when {
+                                ready -> R.string.pc_usb_ready_hint
+                                stage == app.barq.web.UsbTether.Stage.STARTING -> R.string.pc_usb_state_starting
+                                stage == app.barq.web.UsbTether.Stage.CABLE_ONLY && usb.fileTransfer -> R.string.pc_usb_state_files
+                                stage == app.barq.web.UsbTether.Stage.CABLE_ONLY -> R.string.pc_usb_state_cable
+                                else -> R.string.pc_usb_state_none
+                            },
+                        ),
                         style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
                     )
                 }
+                usb.driver?.takeIf { ready }?.let { BarqChip(it, ChipTone.Ok) }
             }
-            if (usbUrl != null) {
+            val url = usb.url
+            if (ready && url != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(usbUrl, style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, color = c.primary, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(usbUrl)) }) { Text(stringResource(R.string.pc_copy)) }
+                    Text(url, style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, color = c.primary, modifier = Modifier.weight(1f), maxLines = 1)
+                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(url)) }) { Text(stringResource(R.string.pc_copy)) }
                 }
+                val qr = remember(url) { qrBitmap(url, sizePx = 360) }
+                androidx.compose.foundation.Image(
+                    bitmap = qr.asImageBitmap(), contentDescription = null,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).size(168.dp).clip(RoundedCornerShape(12.dp)),
+                )
             } else {
-                Text(stringResource(R.string.pc_usb_steps), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                val done1 = stage != app.barq.web.UsbTether.Stage.NO_CABLE
+                val done2 = usb.fileTransfer || stage == app.barq.web.UsbTether.Stage.STARTING
+                val current = when { !done1 -> 1; !done2 -> 2; else -> 3 }
+                UsbStep(1, stringResource(R.string.pc_usb_step_cable), done1, current == 1)
+                UsbStep(2, stringResource(R.string.pc_usb_step_mode), done2, current == 2)
+                UsbStep(3, stringResource(R.string.pc_usb_step_tether), false, current == 3)
                 TextButton(onClick = {
-                    val intents = listOf(
-                        android.content.Intent("android.settings.TETHER_SETTINGS"),
-                        android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS),
-                    )
-                    for (i in intents) { if (runCatching { ctx.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) break }
+                    if (!app.barq.web.UsbTether.openTetherSettings(ctx)) android.widget.Toast.makeText(ctx, settingsFailed, android.widget.Toast.LENGTH_LONG).show()
                 }) { Text(stringResource(R.string.pc_usb_open_settings)) }
+                Text(stringResource(R.string.pc_usb_windows), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun UsbStep(n: Int, text: String, done: Boolean, current: Boolean) {
+    val c = MaterialTheme.colorScheme
+    val x = app.barq.ui.theme.LocalBarqExtras.current
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            Modifier.size(24.dp).clip(CircleShape).background(if (done) x.ok else if (current) c.primary else c.outline.copy(alpha = 0.35f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (done) Icon(BarqIcons.Check, contentDescription = null, tint = c.surface, modifier = Modifier.size(14.dp))
+            else Text(n.toString(), style = MaterialTheme.typography.labelMedium, color = if (current) c.onPrimary else c.onSurfaceVariant)
+        }
+        Text(
+            text, style = MaterialTheme.typography.bodyMedium,
+            color = if (current) c.onSurface else c.onSurfaceVariant,
+            fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

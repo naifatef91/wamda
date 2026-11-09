@@ -58,6 +58,7 @@ import app.barq.TransferController
 import app.barq.TransferState
 import app.barq.data.HistoryStore
 import app.barq.data.PickedFile
+import app.barq.FeatureFlags
 import app.barq.data.Settings
 import app.barq.engine.QrPayload
 import app.barq.engine.Snapshot
@@ -118,7 +119,7 @@ fun ReceiveScreen(onHome: () -> Unit, onMinimize: () -> Unit = onHome) {
                 )
             }
         }
-        is TransferState.Listening -> ReceiveQr(s.qr, s.band, onHome, dropped = s.dropped, onScanSender = onScanSender, notHost = notHost)
+        is TransferState.Listening -> ReceiveQr(s.qr, s.band, onHome, dropped = s.dropped, onScanSender = if (FeatureFlags.broadcast(Settings.get(ctx).state.collectAsStateWithLifecycle().value)) onScanSender else null, notHost = notHost)
         is TransferState.AwaitingAccept -> {
             ReceiveQr(null, "", onHome)
             IncomingDialog(s.manifest) { accept, trust -> TransferController.accept(ctx, accept, trust) }

@@ -24,6 +24,8 @@ data class BarqSettings(
     val streams: Int,
     /** Chunks the receiver writes to flash at the same moment (1 to 8). Lower is gentler on slow eMMC, higher suits fast UFS. */
     val diskWriters: Int,
+    /** Developer switch for features not yet proven on real devices (USB cable between phones, broadcast). Unlocked by tapping the version 7 times. */
+    val experimental: Boolean,
     /** Benchmark only: receive without TLS so the cost of encryption can be measured. */
     val benchmarkPlain: Boolean,
 )
@@ -53,6 +55,7 @@ class Settings private constructor(context: Context) {
             .putBoolean(K_PC_5G, next.pc5GHz)
             .putInt(K_STREAMS, next.streams)
             .putInt(K_DISK_WRITERS, next.diskWriters)
+            .putBoolean(K_EXPERIMENTAL, next.experimental)
             .putBoolean(K_PLAIN, next.benchmarkPlain)
             .apply()
         _state.value = next
@@ -91,6 +94,7 @@ class Settings private constructor(context: Context) {
         pc5GHz = prefs.getBoolean(K_PC_5G, false),
         streams = prefs.getInt(K_STREAMS, 6).coerceIn(1, 8),
         diskWriters = prefs.getInt(K_DISK_WRITERS, 4).coerceIn(1, 8),
+        experimental = prefs.getBoolean(K_EXPERIMENTAL, false),
         benchmarkPlain = prefs.getBoolean(K_PLAIN, false),
     )
 
@@ -111,6 +115,7 @@ class Settings private constructor(context: Context) {
         private const val K_PC_5G = "pc_5ghz"
         private const val K_STREAMS = "streams"
         private const val K_DISK_WRITERS = "disk_writers"
+        private const val K_EXPERIMENTAL = "experimental"
         private const val K_PLAIN = "benchmark_plain"
 
         @Volatile private var instance: Settings? = null

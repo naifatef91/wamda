@@ -57,6 +57,7 @@ import app.barq.R
 import app.barq.TransferController
 import app.barq.TransferState
 import app.barq.data.HistoryStore
+import app.barq.FeatureFlags
 import app.barq.data.Settings
 import app.barq.net.BleScanner
 import app.barq.net.NearbyDevice
@@ -77,6 +78,7 @@ fun HomeScreen(
     onSend: () -> Unit, onReceive: () -> Unit, onHistory: () -> Unit, onSettings: () -> Unit,
     onOpenTransfer: () -> Unit = {}, onPc: () -> Unit = {}, onCable: () -> Unit = {},
 ) {
+    val cableEnabled = FeatureFlags.phoneCable(Settings.get(LocalContext.current).state.collectAsStateWithLifecycle().value)
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val x = MaterialTheme.extras
@@ -146,7 +148,7 @@ fun HomeScreen(
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             BarqButton(stringResource(R.string.home_pc), onPc, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Monitor, modifier = Modifier.weight(1f))
-            BarqButton(stringResource(R.string.home_cable), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Usb, modifier = Modifier.weight(1f))
+            if (cableEnabled) BarqButton(stringResource(R.string.home_cable), onCable, kind = ButtonKind.Outlined, height = 50, leading = BarqIcons.Usb, modifier = Modifier.weight(1f))
         }
 
         Spacer(Modifier.height(26.dp))

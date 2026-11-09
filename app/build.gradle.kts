@@ -24,6 +24,8 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "1.1.0"
+        // Ships the phone-to-phone cable and multi-receiver broadcast to everyone when true. Override with -PshipExperimental=true.
+        buildConfigField("boolean", "EXPERIMENTAL_DEFAULT", (project.findProperty("shipExperimental") ?: "false").toString())
     }
 
     signingConfigs {

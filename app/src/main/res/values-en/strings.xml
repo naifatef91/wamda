@@ -194,4 +194,11 @@
     <string name="orphan_hint">They reserve %1$s. Removed automatically after 7 days</string>
     <string name="orphan_delete">Delete unfinished files</string>
     <string name="orphan_confirm">%1$d unfinished files (%2$s) will be deleted and their transfers can no longer be resumed. Finished files are not affected.</string>
+    <string name="settings_version">Version</string>
+    <string name="dev_section">Developer options</string>
+    <string name="dev_experimental">Experimental features</string>
+    <string name="dev_experimental_hint">Broadcast to several devices and the cable between two phones. Not proven on every device yet</string>
+    <string name="dev_unlocked">Developer options enabled</string>
+    <string name="dev_already">Developer options are already enabled</string>
+    <string name="dev_taps_left">%1$d more taps to enable developer options</string>
 </resources>

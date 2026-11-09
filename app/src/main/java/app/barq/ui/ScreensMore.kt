@@ -61,6 +61,9 @@ import app.barq.TransferController
 import app.barq.TransferState
 import kotlinx.coroutines.launch
 import app.barq.data.HistoryStore
+import android.widget.Toast
+import app.barq.BuildConfig
+import app.barq.FeatureFlags
 import app.barq.data.Settings
 import app.barq.data.ThemeChoice
 import app.barq.data.TransferRecord
@@ -192,6 +195,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     val settings = Settings.get(ctx)
     val s by settings.state.collectAsStateWithLifecycle()
     var editingName by remember { mutableStateOf(false) }
+    var versionTaps by remember { mutableStateOf(0) }
     BackHandler { onBack() }
 
     if (editingName) {
@@ -295,6 +299,38 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                         LinkRow(stringResource(R.string.settings_privacy)) { onOpen("privacy") }
                         HorizontalDivider(color = c.outline)
                         LinkRow(stringResource(R.string.settings_terms)) { onOpen("terms") }
+                        HorizontalDivider(color = c.outline)
+                        // Seven taps on the version unlock the experimental switch below, like Android's own developer options.
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable {
+                                if (FeatureFlags.experimental(s)) {
+                                    Toast.makeText(ctx, ctx.getString(R.string.dev_already), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val tap = FeatureFlags.registerTap(versionTaps)
+                                    versionTaps = tap.taps
+                                    if (tap.unlocked) {
+                                        settings.update { it.copy(experimental = true) }
+                                        Toast.makeText(ctx, ctx.getString(R.string.dev_unlocked), Toast.LENGTH_LONG).show()
+                                    } else if (tap.showCountdown) {
+                                        Toast.makeText(ctx, ctx.getString(R.string.dev_taps_left, tap.left), Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(stringResource(R.string.settings_version), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                            Text(BuildConfig.VERSION_NAME, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            if (FeatureFlags.experimental(s)) {
+                item { SectionHeader(stringResource(R.string.dev_section)) }
+                item {
+                    BarqCard(Modifier.fillMaxWidth()) {
+                        SettingRow(stringResource(R.string.dev_experimental), stringResource(R.string.dev_experimental_hint), onClick = { if (!FeatureFlags.shippedToEveryone) settings.update { it.copy(experimental = !it.experimental) } }) {
+                            BarqSwitch(s.experimental || FeatureFlags.shippedToEveryone) { on -> if (!FeatureFlags.shippedToEveryone) settings.update { it.copy(experimental = on) } }
+                        }
                     }
                 }
             }
