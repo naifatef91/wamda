@@ -51,6 +51,18 @@ class TransferService : LifecycleService() {
         }
     }
 
+    /**
+     * Android 15+ caps dataSync foreground services at 6 hours per 24 and then calls this; the service must
+     * stop within seconds or the system raises an exception (and Play counts it as a crash). Stopping here
+     * ends the notification and the wake locks; the transfer state is kept by the controller and the receiver
+     * already resumes from the chunks it has.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        android.util.Log.w("Wamda", "foreground service type $fgsType timed out, stopping")
+        releaseLocks()
+        stopSelf()
+    }
+
     override fun onDestroy() {
         releaseLocks()
         super.onDestroy()
