@@ -184,4 +184,14 @@
     <string name="discover_ble_lost">Bluetooth connection dropped before approval. Try again or scan the code.</string>
     <string name="connect_request_title">Connection request</string>
     <string name="connect_request_body">“%1$s” wants to connect to your device. No network details are sent unless you accept.</string>
+    <string name="install_app">Install “%1$s”</string>
+    <string name="install_allow_source">Allow Wamda to install apps on the next page, then tap Install again</string>
+    <string name="install_ok">App installed</string>
+    <string name="install_cancelled">Installation cancelled</string>
+    <string name="install_failed">Installation failed: %1$s</string>
+    <string name="install_failed_short">Could not start the installation</string>
+    <string name="orphan_title">%1$d unfinished files on this phone</string>
+    <string name="orphan_hint">They reserve %1$s. Removed automatically after 7 days</string>
+    <string name="orphan_delete">Delete unfinished files</string>
+    <string name="orphan_confirm">%1$d unfinished files (%2$s) will be deleted and their transfers can no longer be resumed. Finished files are not affected.</string>
 </resources>

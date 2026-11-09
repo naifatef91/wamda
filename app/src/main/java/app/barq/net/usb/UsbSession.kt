@@ -221,7 +221,7 @@ object UsbSession {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED); addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
             addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED); addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
         }
-        if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(r, filter, Context.RECEIVER_NOT_EXPORTED) else app.registerReceiver(r, filter)
+        androidx.core.content.ContextCompat.registerReceiver(app, r, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         receiver = r
     }
 }

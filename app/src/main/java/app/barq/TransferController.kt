@@ -9,6 +9,7 @@ import app.barq.data.TransferRecord
 import app.barq.engine.BroadcastHost
 import app.barq.engine.DialTransport
 import app.barq.engine.FileEntry
+import app.barq.engine.ApkBundle
 import app.barq.engine.Link
 import app.barq.engine.mapParallel
 import app.barq.engine.SenderTransport
@@ -205,6 +206,10 @@ object TransferController {
         connectGate?.complete(yes to trust)
     }
 
+    private val _installables = MutableStateFlow<List<app.barq.data.Installable>>(emptyList())
+    /** Apps received in the current session; the finish screen offers to install them. */
+    val installables: StateFlow<List<app.barq.data.Installable>> = _installables.asStateFlow()
+
     private var acceptGate: CompletableDeferred<Boolean>? = null
     private var pendingSender: String? = null
     /** Certificate fingerprint of the sender behind [pendingSender]; null on unauthenticated links (cable). */
@@ -265,9 +270,10 @@ object TransferController {
                 var startedAt = 0L
                 var watchdog: Job? = null
 
+                val store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app),
-                    store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters),
+                    store = store,
                     onIncoming = { manifest, peerId ->
                         val s = settings.state.value
                         // Trust is keyed on the sender's certificate, never on the name it chose.
@@ -295,7 +301,7 @@ object TransferController {
                     },
                     onSessionDone = { result ->
                         val snap = stats?.snapshot() ?: emptySnapshot()
-                        record(app, Direction.RECEIVE, peer, group.band, stats, startedAt, result.incompleteFiles.size)
+                        record(app, Direction.RECEIVE, peer, group.band, stats, startedAt, result.incompleteFiles.size, store.drainInstallables())
                         stats = null; startedAt = 0L
                         _state.value = TransferState.Finished(Direction.RECEIVE, peer, snap, result.incompleteFiles.size)
                     },
@@ -557,9 +563,10 @@ object TransferController {
                 android.util.Log.i(TAG, "joined ${qr.ssid}; dialing ${qr.ip}:${qr.port}")
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
                 requireEncryptionAgreement(app, qr.enc)
+                val store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = qr.token, deviceName = deviceName(app),
-                    store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters),
+                    store = store,
                     onIncoming = { manifest, peerId ->
                         val s = settings.state.value
                         if (s.autoAcceptTrusted && settings.isTrusted(manifest.senderName, peerId)) return@Receiver true
@@ -570,7 +577,7 @@ object TransferController {
                     },
                     onPlanned = { s, p -> stats = s; peer = p; startedAt = System.currentTimeMillis() },
                     onSessionDone = { r ->
-                        record(app, Direction.RECEIVE, peer, band, stats, startedAt, r.incompleteFiles.size)
+                        record(app, Direction.RECEIVE, peer, band, stats, startedAt, r.incompleteFiles.size, store.drainInstallables())
                         _state.value = TransferState.Finished(Direction.RECEIVE, peer, stats?.snapshot() ?: emptySnapshot(), r.incompleteFiles.size, sessionOpen = false)
                     },
                     streams = settings.state.value.streams,
@@ -670,6 +677,7 @@ object TransferController {
     /** Receiver side over the cable only: the remote announced [token]; serve the streams it opens. */
     private fun startUsbReceive(app: Context, token: String, from: String) {
         cancelJobOnly()
+        _installables.value = emptyList()
         lastDirection = Direction.RECEIVE
         job = scope.launch {
             val settings = Settings.get(app)
@@ -679,9 +687,10 @@ object TransferController {
             val done = CompletableDeferred<Unit>()
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
+                val store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app),
-                    store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters),
+                    store = store,
                     onIncoming = { manifest, _ ->
                         // The cable carries no certificate, so a trusted name alone never skips the dialog.
                         pendingSender = manifest.senderName; pendingPeerId = null
@@ -691,7 +700,7 @@ object TransferController {
                     },
                     onPlanned = { s, p -> stats = s; peer = p; startedAt = System.currentTimeMillis() },
                     onSessionDone = { r ->
-                        record(app, Direction.RECEIVE, peer, "USB", stats, startedAt, r.incompleteFiles.size)
+                        record(app, Direction.RECEIVE, peer, "USB", stats, startedAt, r.incompleteFiles.size, store.drainInstallables())
                         _state.value = TransferState.Finished(Direction.RECEIVE, peer, stats?.snapshot() ?: emptySnapshot(), r.incompleteFiles.size, sessionOpen = false)
                         done.complete(Unit)
                     },
@@ -741,6 +750,7 @@ object TransferController {
     }
 
     fun cancel() {
+        _installables.value = emptyList()
         cancelJobOnly()
         client?.close()
         client = null
@@ -761,7 +771,7 @@ object TransferController {
 
     // ---------- Helpers ----------
 
-    private fun record(context: Context, direction: Direction, peer: String, band: String, stats: TransferStats?, startedAt: Long, incomplete: Int) {
+    private fun record(context: Context, direction: Direction, peer: String, band: String, stats: TransferStats?, startedAt: Long, incomplete: Int, installables: List<app.barq.data.Installable> = emptyList()) {
         val snap = stats?.snapshot() ?: return
         android.util.Log.i(
             TAG, "profile $direction peer=$peer band=$band streams=${snap.streams} bytes=${snap.bytesDone} " +
@@ -772,24 +782,39 @@ object TransferController {
                 id = java.util.UUID.randomUUID().toString(),
                 direction = direction, peer = peer, fileCount = snap.files.size, bytes = snap.bytesDone,
                 avgBps = snap.avgBps, band = band, startedAt = startedAt, durationMs = snap.elapsedMs, incomplete = incomplete,
+                installables = installables,
             ),
         )
+        if (installables.isNotEmpty()) _installables.value = _installables.value + installables
     }
 
     private fun toSendItem(context: Context, f: PickedFile, id: Int): SendItem {
         val resolver = context.contentResolver
+        // An app with split APKs is packed into one .apks (STORE zip) in the cache first; it is sent as that file.
+        val source: android.net.Uri
+        val size: Long
+        if (f.splits.isNotEmpty()) {
+            val dir = File(context.cacheDir, "apks").apply { mkdirs() }
+            val packed = File(dir, "${f.packageName ?: id}-${f.modifiedSec}.apks")
+            if (!packed.exists() || packed.length() == 0L) {
+                ApkBundle.pack(listOf(File(f.uri.path!!)) + f.splits.map { File(it) }, packed)
+            }
+            source = android.net.Uri.fromFile(packed); size = packed.length()
+        } else {
+            source = f.uri; size = f.size
+        }
         val open: () -> ReadableFile = {
-            if (f.uri.scheme == "file") {
-                val stream = FileInputStream(File(f.uri.path!!))
+            if (source.scheme == "file") {
+                val stream = FileInputStream(File(source.path!!))
                 ReadableFile(stream.channel) { stream.close() }
             } else {
-                val pfd = resolver.openFileDescriptor(f.uri, "r") ?: throw java.io.IOException("cannot open ${f.name}")
+                val pfd = resolver.openFileDescriptor(source, "r") ?: throw java.io.IOException("cannot open ${f.name}")
                 ReadableFile(FileInputStream(pfd.fileDescriptor).channel) { pfd.close() }
             }
         }
         // Quick fingerprint (at most 192 KiB read) so the receiver can skip files it already has.
-        val fp = runCatching { open().use { app.barq.engine.QuickHash.of(it.channel, f.size) } }.getOrNull()
-        val entry = FileEntry(id, f.name, f.size, f.mime, f.modifiedSec * 1000, path = f.relPath, fp = fp)
+        val fp = runCatching { open().use { app.barq.engine.QuickHash.of(it.channel, size) } }.getOrNull()
+        val entry = FileEntry(id, f.name, size, f.mime, f.modifiedSec * 1000, path = f.relPath, fp = fp)
         return SendItem(entry, open)
     }
 

@@ -184,4 +184,14 @@
     <string name="discover_ble_lost">انقطع اتصال Bluetooth قبل الموافقة، جرّب مرة أخرى أو امسح الكود</string>
     <string name="connect_request_title">طلب اتصال</string>
     <string name="connect_request_body">«%1$s» يرغب بالاتصال بجهازك. لن تُرسَل إليه بيانات الشبكة إلا إذا وافقت.</string>
+    <string name="install_app">تثبيت «%1$s»</string>
+    <string name="install_allow_source">اسمح لومضة بتثبيت التطبيقات من الصفحة التالية ثم اضغط «تثبيت» مرة أخرى</string>
+    <string name="install_ok">تم تثبيت التطبيق</string>
+    <string name="install_cancelled">أُلغي التثبيت</string>
+    <string name="install_failed">تعذّر التثبيت: %1$s</string>
+    <string name="install_failed_short">تعذّر بدء التثبيت</string>
+    <string name="orphan_title">%1$d ملف غير مكتمل على هذا الهاتف</string>
+    <string name="orphan_hint">تحجز %1$s. تُحذف تلقائيًا بعد 7 أيام</string>
+    <string name="orphan_delete">حذف الملفات غير المكتملة</string>
+    <string name="orphan_confirm">سيُحذف %1$d ملف غير مكتمل (%2$s) ولا يمكن استكمال نقلها بعد ذلك. الملفات المكتملة لا تتأثر.</string>
 </resources>

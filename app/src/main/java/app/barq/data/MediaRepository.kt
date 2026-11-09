@@ -28,6 +28,8 @@ data class PickedFile(
     val modifiedSec: Long = 0L,
     val durationMs: Long = 0L,
     val packageName: String? = null,
+    /** Paths of the split APKs of an installed app; non-empty means [uri] is the base APK and the set is sent as one .apks. */
+    val splits: List<String> = emptyList(),
     /** Folder path relative to the picked root ("Trip/Day 1"), "" for loose files. */
     val relPath: String = "",
     /** Identifies the picked folder this file came from, so the picker can select it as a unit. */
@@ -88,11 +90,22 @@ object MediaRepository {
                 val apk = File(app.publicSourceDir ?: return@mapNotNull null)
                 if (!apk.canRead()) return@mapNotNull null
                 val label = pm.getApplicationLabel(app).toString()
-                PickedFile(
-                    uri = Uri.fromFile(apk), name = "$label.apk", size = apk.length(),
-                    mime = "application/vnd.android.package-archive", kind = FileKind.APP,
-                    modifiedSec = apk.lastModified() / 1000, packageName = app.packageName,
-                )
+                val splits = app.splitPublicSourceDirs.orEmpty().filter { File(it).canRead() }
+                if (splits.isEmpty()) {
+                    PickedFile(
+                        uri = Uri.fromFile(apk), name = "$label.apk", size = apk.length(),
+                        mime = "application/vnd.android.package-archive", kind = FileKind.APP,
+                        modifiedSec = apk.lastModified() / 1000, packageName = app.packageName,
+                    )
+                } else {
+                    // Base + splits travel as one STORE zip named .apks; the extension is not an apk one, so the
+                    // mime type must stay generic or MediaStore would append ".apk" on the receiving phone.
+                    PickedFile(
+                        uri = Uri.fromFile(apk), name = "$label.apks", size = apk.length() + splits.sumOf { File(it).length() },
+                        mime = "application/octet-stream", kind = FileKind.APP,
+                        modifiedSec = apk.lastModified() / 1000, packageName = app.packageName, splits = splits,
+                    )
+                }
             }
             .sortedBy { it.name.lowercase() }
     }

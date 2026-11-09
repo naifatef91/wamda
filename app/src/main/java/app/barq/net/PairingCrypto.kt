@@ -112,7 +112,7 @@ object PairingCrypto {
         val p = (spec.curve.field as ECFieldFp).p
         require(x < p && y < p)
         // y^2 = x^3 + ax + b (mod p)
-        val lhs = y.modPow(BigInteger.TWO, p)
+        val lhs = y.modPow(BigInteger.valueOf(2), p)
         val rhs = x.modPow(BigInteger.valueOf(3), p).add(spec.curve.a.multiply(x)).add(spec.curve.b).mod(p)
         require(lhs == rhs) { "point is not on the curve" }
         return ECPoint(x, y)

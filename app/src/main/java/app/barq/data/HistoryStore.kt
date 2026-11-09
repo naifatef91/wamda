@@ -10,6 +10,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import java.io.File
 
+/** A received .apk or .apks the user can install from the history or the finish screen. */
+@Serializable
+data class Installable(val name: String, val uri: String)
+
 @Serializable
 data class TransferRecord(
     val id: String,
@@ -22,6 +26,7 @@ data class TransferRecord(
     val startedAt: Long,
     val durationMs: Long,
     val incomplete: Int = 0,
+    val installables: List<Installable> = emptyList(),
 ) {
     val complete: Boolean get() = incomplete == 0
 }

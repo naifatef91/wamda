@@ -16,6 +16,9 @@ import java.security.MessageDigest
 import java.util.BitSet
 import java.util.concurrent.ConcurrentHashMap
 
+/** What the stale-state sweeper found or removed: unfinished files and the space they reserve. */
+class StateSweep(val files: Int, val bytes: Long)
+
 /**
  * Where incoming bytes land. Files are created as pending MediaStore entries in
  * Download/Wamda, preallocated to their final size, and written at chunk offsets
@@ -43,6 +46,10 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
     }
 
     private val open = ConcurrentHashMap<Int, OpenFile>()
+    private val installables = ArrayList<app.barq.data.Installable>()
+
+    /** Apps (.apk / .apks) that finished arriving since the last call, so the UI can offer to install them. */
+    fun drainInstallables(): List<app.barq.data.Installable> = synchronized(installables) { installables.toList().also { installables.clear() } }
 
     /** Opens or resumes every file in the manifest. Returns fileId -> missing chunk indexes (complete files omitted). */
     override fun prepare(manifest: TransferManifest): Map<Int, List<Int>> {
@@ -109,6 +116,9 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
                 if (f.isComplete()) {
                     resolver.update(f.uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
                     f.stateFile.delete()
+                    if (ApkBundle.isInstallable(f.entry.name)) {
+                        synchronized(installables) { installables += app.barq.data.Installable(sanitize(f.entry.name), f.uri.toString()) }
+                    }
                 } else {
                     persist(f)
                 }
@@ -202,5 +212,41 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
     companion object {
         /** Default for the "simultaneous disk writes" setting. */
         const val DEFAULT_DISK_WRITERS = 4
+
+        /** A resume state untouched for this long belongs to a transfer nobody is going to finish. */
+        const val ORPHAN_AGE_MS = 7L * 24 * 3600 * 1000
+
+        private fun stateFiles(stateDir: File): List<File> = stateDir.listFiles { f -> f.isFile && f.name.endsWith(".json") }?.toList().orEmpty()
+
+        private fun readState(f: File): ResumeState? = runCatching { wireJson.decodeFromString(ResumeState.serializer(), f.readText()) }.getOrNull()
+
+        /** How many unfinished files wait in [stateDir], and how much space they reserve. */
+        fun pending(stateDir: File): StateSweep {
+            var n = 0; var bytes = 0L
+            for (f in stateFiles(stateDir)) { n++; bytes += readState(f)?.size ?: 0L }
+            return StateSweep(n, bytes)
+        }
+
+        /**
+         * Removes the unfinished file behind every state file older than [maxAgeMs] (0 removes all):
+         * [deleteEntry] gets the MediaStore uri of the preallocated placeholder, then the state file goes.
+         * A state file nobody can read any more is removed too, since it can never be resumed.
+         */
+        fun sweep(stateDir: File, now: Long, maxAgeMs: Long, deleteEntry: (uri: String) -> Unit): StateSweep {
+            var n = 0; var bytes = 0L
+            for (f in stateFiles(stateDir)) {
+                if (maxAgeMs > 0 && now - f.lastModified() < maxAgeMs) continue
+                val st = readState(f)
+                if (st != null) { runCatching { deleteEntry(st.uri) }; bytes += st.size }
+                if (f.delete()) n++
+            }
+            return StateSweep(n, bytes)
+        }
+
+        fun stateDir(context: Context): File = File(context.filesDir, "resume")
+
+        /** Android side of [sweep]: deletes the pending MediaStore placeholders. */
+        fun sweepOrphans(context: Context, maxAgeMs: Long): StateSweep =
+            sweep(stateDir(context), System.currentTimeMillis(), maxAgeMs) { uri -> context.contentResolver.delete(Uri.parse(uri), null, null) }
     }
 }

@@ -361,6 +361,11 @@ fun FinishedView(s: TransferState.Finished, onHome: () -> Unit, onMore: (() -> U
                 Spacer(Modifier.height(14.dp))
                 Text(stringResource(R.string.transfer_incomplete, s.incomplete), color = c.error)
             }
+            val received by TransferController.installables.collectAsStateWithLifecycle()
+            if (s.direction == Direction.RECEIVE && received.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                received.take(5).forEach { InstallButton(it, Modifier.padding(bottom = 8.dp)) }
+            }
             val p = s.snapshot.profileMs
             if (p.isNotEmpty() && s.snapshot.streams > 0) {
                 // Stage times are summed across streams; divide by streams for wall-clock-ish seconds.

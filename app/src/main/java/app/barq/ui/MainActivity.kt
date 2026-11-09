@@ -99,7 +99,9 @@ fun requiredPermissions(): List<String> = buildList {
         add(Manifest.permission.NEARBY_WIFI_DEVICES)
         add(Manifest.permission.POST_NOTIFICATIONS)
     } else {
+        // Android 12 shows a precise/approximate choice, which requires asking for both.
         add(Manifest.permission.ACCESS_FINE_LOCATION)
+        add(Manifest.permission.ACCESS_COARSE_LOCATION)
     }
     if (Build.VERSION.SDK_INT >= 31) {
         add(Manifest.permission.BLUETOOTH_SCAN)

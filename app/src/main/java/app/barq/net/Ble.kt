@@ -316,7 +316,7 @@ class BleScanner(private val context: Context) {
                 if (ch == null) { finish(Result.failure(IOException("not a Wamda device"))); return }
                 ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 val started = if (Build.VERSION.SDK_INT >= 33) {
-                    g.writeCharacteristic(ch, request, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+                    g.writeCharacteristic(ch, request, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == android.bluetooth.BluetoothStatusCodes.SUCCESS
                 } else {
                     @Suppress("DEPRECATION") run { ch.value = request; g.writeCharacteristic(ch) }
                 }

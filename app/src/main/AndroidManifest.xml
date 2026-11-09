@@ -33,6 +33,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- The transfer talks to a nearby phone over Wi-Fi Direct / Bluetooth LE / USB; allowed together with dataSync on Android 14+. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Install a received .apk / .apks after the user taps Install (PackageInstaller session). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Wi-Fi Direct: Android 13+ -->
@@ -43,6 +47,9 @@
     <!-- Wi-Fi Direct: Android 10 to 12 -->
     <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
         android:maxSdkVersion="32" />
 
     <!-- The Apps tab lists launchable apps only; no QUERY_ALL_PACKAGES (Play policy). -->
@@ -105,6 +112,10 @@
         <service
             android:name=".service.TransferService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync|connectedDevice" />
+
+        <receiver
+            android:name=".install.InstallReceiver"
+            android:exported="false" />
     </application>
 </manifest>

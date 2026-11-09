@@ -57,6 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.barq.Direction
 import app.barq.R
+import app.barq.TransferController
+import app.barq.TransferState
+import kotlinx.coroutines.launch
 import app.barq.data.HistoryStore
 import app.barq.data.Settings
 import app.barq.data.ThemeChoice
@@ -92,6 +95,7 @@ fun HistoryScreen(onBack: () -> Unit, onReceive: () -> Unit) {
         TopBar(stringResource(R.string.history_title), onBack = onBack) {
             if (records.isNotEmpty()) TextButton(onClick = { confirmClear = true }) { Text(stringResource(R.string.history_clear), color = c.error) }
         }
+        OrphanCard()
 
         if (records.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -139,6 +143,7 @@ fun HistoryRow(r: TransferRecord, onResume: (() -> Unit)? = null) {
     val incoming = r.direction == Direction.RECEIVE
     val tint = if (!r.complete) x.warnSoft else null
     BarqCard(Modifier.fillMaxWidth(), tint = tint) {
+      Column {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconBadge(
                 if (incoming) BarqIcons.ArrowDown else BarqIcons.ArrowUp,
@@ -160,6 +165,8 @@ fun HistoryRow(r: TransferRecord, onResume: (() -> Unit)? = null) {
                 Text(formatSpeed(r.avgBps), style = MaterialTheme.typography.labelMedium, color = if (incoming) x.ok else c.primary)
             }
         }
+        if (incoming) r.installables.forEach { InstallButton(it, Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) }
+      }
     }
 }
 
@@ -375,6 +382,49 @@ private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect:
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) c.onSurface else c.onSurfaceVariant) }
+        }
+    }
+}
+
+/**
+ * Unfinished received files keep their full size reserved on the phone. This card appears only when some
+ * exist and lets the user free that space; files untouched for 7 days are also removed at app start.
+ */
+@Composable
+private fun OrphanCard() {
+    val ctx = LocalContext.current
+    val c = MaterialTheme.colorScheme
+    val state by TransferController.state.collectAsStateWithLifecycle()
+    var refresh by remember { mutableStateOf(0) }
+    var confirm by remember { mutableStateOf(false) }
+    val pending by androidx.compose.runtime.produceState(app.barq.engine.StateSweep(0, 0L), refresh) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.barq.engine.ReceiveStore.pending(app.barq.engine.ReceiveStore.stateDir(ctx)) }
+    }
+    if (pending.files == 0) return
+    // Never delete under a transfer that may be writing into those files.
+    val receiving = state is TransferState.Listening || state is TransferState.Running || state is TransferState.AwaitingAccept || state is TransferState.Preparing
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.orphan_delete)) },
+            text = { Text(stringResource(R.string.orphan_confirm, pending.files, formatBytes(pending.bytes))) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    scope.launch { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.barq.engine.ReceiveStore.sweepOrphans(ctx, 0) }; refresh++ }
+                }) { Text(stringResource(R.string.orphan_delete), color = c.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    BarqCard(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.orphan_title, pending.files), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.orphan_hint, formatBytes(pending.bytes)), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+            }
+            BarqButton(stringResource(R.string.orphan_delete), { confirm = true }, kind = ButtonKind.Tonal, height = 44, fillWidth = false, enabled = !receiving)
         }
     }
 }

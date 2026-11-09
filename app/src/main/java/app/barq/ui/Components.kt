@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -239,6 +240,34 @@ fun ConnectRequestDialog(name: String, onDecide: (accept: Boolean, trust: Boolea
 fun ConnectRequestHost() {
     val request by app.barq.TransferController.connectRequest.collectAsStateWithLifecycle()
     request?.let { r -> ConnectRequestDialog(r.name) { yes, trust -> app.barq.TransferController.answerConnect(yes, trust) } }
+}
+
+/** Installs a received .apk / .apks after the user taps it; the system shows its own confirmation. */
+@Composable
+fun InstallButton(item: app.barq.data.Installable, modifier: Modifier = Modifier) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    val needAllow = stringResource(R.string.install_allow_source)
+    val failed = stringResource(R.string.install_failed_short)
+    BarqButton(
+        stringResource(R.string.install_app, item.name),
+        onClick = {
+            if (busy) return@BarqButton
+            if (!app.barq.install.ApkInstaller.canInstall(ctx)) {
+                android.widget.Toast.makeText(ctx, needAllow, android.widget.Toast.LENGTH_LONG).show()
+                app.barq.install.ApkInstaller.openAllowSourceSettings(ctx)
+                return@BarqButton
+            }
+            busy = true
+            scope.launch {
+                runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.barq.install.ApkInstaller.install(ctx, android.net.Uri.parse(item.uri), item.name) } }
+                    .onFailure { e -> android.widget.Toast.makeText(ctx, failed + (e.message?.let { ": " + it } ?: ""), android.widget.Toast.LENGTH_LONG).show() }
+                busy = false
+            }
+        },
+        modifier = modifier, kind = ButtonKind.Tonal, height = 48, enabled = !busy,
+    )
 }
 
 @Composable
