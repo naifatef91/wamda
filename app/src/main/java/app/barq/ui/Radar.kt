@@ -42,7 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.barq.R
 import app.barq.engine.QrPayload
+import app.barq.crypto.Tls
+import app.barq.data.Settings
 import app.barq.net.BleScanner
+import app.barq.net.PairingDeclined
+import app.barq.net.PairingTimeout
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import app.barq.net.NearbyDevice
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -62,6 +68,9 @@ fun DiscoverScreen(
     val ctx = LocalContext.current
     val c = MaterialTheme.colorScheme
     val fetchFailed = stringResource(R.string.discover_fetch_failed)
+    val deniedText = stringResource(R.string.discover_denied)
+    val timeoutText = stringResource(R.string.discover_timeout)
+    val lostText = stringResource(R.string.discover_ble_lost)
     val scanner = remember { BleScanner(ctx) }
     val bleDevices by scanner.devices.collectAsStateWithLifecycle()
     // Wi-Fi Aware peers (FR-14) join the same radar; they have no RSSI, so they sit on the middle ring.
@@ -73,6 +82,7 @@ fun DiscoverScreen(
     }
     var scanning by remember { mutableStateOf(false) }
     var fetching by remember { mutableStateOf<String?>(null) }
+    var waiting by remember { mutableStateOf(false) }
     var fetchError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -108,12 +118,23 @@ fun DiscoverScreen(
                             onPickedAware(d.address.removePrefix("aware:").toInt())
                             return@DeviceBubble
                         }
-                        fetching = d.address; fetchError = null
+                        fetching = d.address; fetchError = null; waiting = false
                         scope.launch {
-                            runCatching { scanner.fetchPayload(d.address) }
+                            // Ask first: the other phone shows "X wants to connect" and only then releases its network details.
+                            runCatching {
+                                val me = withContext(Dispatchers.Default) { Tls.identity().fingerprint }
+                                scanner.fetchPayload(d.address, Settings.get(ctx).deviceName, me, onWaiting = { waiting = true })
+                            }
                                 .onSuccess { onPicked(it) }
-                                .onFailure { fetchError = fetchFailed }
-                            fetching = null
+                                .onFailure { e ->
+                                    fetchError = when {
+                                        e is PairingDeclined -> deniedText
+                                        e is PairingTimeout -> timeoutText
+                                        e.message?.startsWith("Bluetooth connection lost") == true -> lostText
+                                        else -> fetchFailed
+                                    }
+                                }
+                            fetching = null; waiting = false
                         }
                     },
                 )
@@ -126,7 +147,7 @@ fun DiscoverScreen(
                 Text(
                     when {
                         !scanning && !awareOn -> stringResource(R.string.discover_bt_off)
-                        fetching != null -> stringResource(R.string.discover_fetching)
+                        fetching != null -> stringResource(if (waiting) R.string.discover_waiting else R.string.discover_fetching)
                         devices.isEmpty() -> stringResource(if (awareOn) R.string.discover_searching_aware else R.string.discover_searching)
                         else -> stringResource(R.string.discover_found, devices.size)
                     },

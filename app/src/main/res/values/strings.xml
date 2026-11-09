@@ -176,4 +176,10 @@
 
     <string name="notif_channel">عمليات النقل</string>
     <string name="notif_running">ومضة يعمل</string>
+    <string name="discover_waiting">بانتظار موافقة الجهاز الآخر…</string>
+    <string name="discover_denied">رفض الجهاز الآخر الاتصال</string>
+    <string name="discover_timeout">انتهت مهلة انتظار الموافقة (30 ثانية)</string>
+    <string name="discover_ble_lost">انقطع اتصال Bluetooth قبل الموافقة، جرّب مرة أخرى أو امسح الكود</string>
+    <string name="connect_request_title">طلب اتصال</string>
+    <string name="connect_request_body">«%1$s» يرغب بالاتصال بجهازك. لن تُرسَل إليه بيانات الشبكة إلا إذا وافقت.</string>
 </resources>

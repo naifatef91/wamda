@@ -45,6 +45,7 @@ fun BroadcastScreen(s: TransferState.Broadcasting, fileCount: Int, onFinish: () 
     val x = MaterialTheme.extras
     val bmp = remember(s.qr) { qrBitmap(s.qr.encode(), sizePx = 512) }
     BackHandler { onFinish() }
+    ConnectRequestHost()
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         TopBar(stringResource(R.string.broadcast_title), subtitle = stringResource(R.string.send_picked_count, fileCount), onBack = onFinish) {

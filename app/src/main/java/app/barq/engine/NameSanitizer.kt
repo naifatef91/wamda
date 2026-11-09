@@ -39,6 +39,18 @@ object NameSanitizer {
         return out.joinToString("/")
     }
 
+    /**
+     * A peer-chosen device name made safe to show in a dialog: no control or bidi characters,
+     * whitespace collapsed, at most [max] characters. Unlike file names it may keep "/" and ":".
+     */
+    fun displayLabel(raw: String, max: Int = 40): String {
+        val kept = StringBuilder(raw.length)
+        for (c in raw) if (!isControlOrBidi(c)) kept.append(c)
+        var s = kept.toString().trim().replace(Regex("\\s+"), " ")
+        while (s.codePointCount(0, s.length) > max) s = s.substring(0, s.offsetByCodePoints(s.length, -1))
+        return s.trim()
+    }
+
     private fun clean(s: String): String {
         val b = StringBuilder(s.length)
         for (c in s) {

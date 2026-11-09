@@ -176,4 +176,10 @@
 
     <string name="notif_channel">Transfers</string>
     <string name="notif_running">Wamda is running</string>
+    <string name="discover_waiting">Waiting for the other device to approve…</string>
+    <string name="discover_denied">The other device declined the connection</string>
+    <string name="discover_timeout">Approval timed out (30 seconds)</string>
+    <string name="discover_ble_lost">Bluetooth connection dropped before approval. Try again or scan the code.</string>
+    <string name="connect_request_title">Connection request</string>
+    <string name="connect_request_body">“%1$s” wants to connect to your device. No network details are sent unless you accept.</string>
 </resources>

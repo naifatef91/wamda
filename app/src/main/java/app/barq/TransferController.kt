@@ -26,6 +26,11 @@ import app.barq.engine.TransferStats
 import app.barq.net.AwareHost
 import app.barq.net.AwareScanner
 import app.barq.net.BleAdvertiser
+import app.barq.net.Decision
+import app.barq.net.PairingDeclined
+import app.barq.net.PairingTimeout
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import app.barq.net.WifiClient
 import app.barq.net.WifiDirectHost
 import kotlinx.coroutines.CancellationException
@@ -58,7 +63,7 @@ sealed interface TransferState {
     /** Broadcast mode: this phone hosts the network and serves every receiver that joins. */
     data class Broadcasting(val qr: QrPayload, val band: String, val peers: List<PeerProgress>) : TransferState
 
-    enum class Step { HOTSPOT, WIFI, HANDSHAKE, RECONNECT, PREPARE }
+    enum class Step { HOTSPOT, WIFI, HANDSHAKE, RECONNECT, PREPARE, WAITING_APPROVAL }
 }
 
 enum class PeerStatus { JOINED, RUNNING, DONE, FAILED }
@@ -124,13 +129,17 @@ object TransferController {
                 _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
                 val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
                 _state.value = TransferState.Preparing(TransferState.Step.WIFI)
-                val (network, addr) = scanner.connect(peer)
+                requireEncryptionAgreement(app, peer.advert.e)
+                // Ask the receiver; its user (or its trusted list) decides. The token only arrives sealed after that.
+                val me = withContext(Dispatchers.Default) { Tls.identity().fingerprint }
+                val link = scanner.connect(peer, deviceName(app), me, onWaiting = { _state.value = TransferState.Preparing(TransferState.Step.WAITING_APPROVAL) })
+                val network = link.network
+                val addr = link.address
                 android.util.Log.i(TAG, "aware data path up: ${addr.hostAddress}:${peer.advert.p}")
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
                 var stats: TransferStats? = null
-                requireEncryptionAgreement(app, peer.advert.e)
                 val transport = DialTransport(network, addr.hostAddress ?: "", peer.advert.p, peer.advert.fp, peer.advert.e, address = addr)
-                val sender = Sender(transport, peer.advert.t, deviceName(app), items, onPlanned = { s, p ->
+                val sender = Sender(transport, link.token, deviceName(app), items, onPlanned = { s, p ->
                     stats = s; lastStats = s
                     if (startedAt == 0L) startedAt = System.currentTimeMillis()
                     if (p.isNotBlank()) peerName = p
@@ -149,10 +158,52 @@ object TransferController {
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "aware send failed", e)
                 lastStats?.let { st -> record(app, Direction.SEND, peerName, "Aware", st, startedAt, st.snapshot().files.count { !it.skipped && it.done < it.size }) }
-                _state.value = TransferState.Failed(describe(e), retryable = false)
+                _state.value = when (e) {
+                    is PairingDeclined -> TransferState.Failed(app.getString(R.string.discover_denied), retryable = false)
+                    is PairingTimeout -> TransferState.Failed(app.getString(R.string.discover_timeout), retryable = true)
+                    else -> TransferState.Failed(describe(e), retryable = false)
+                }
             }
         }
     }
+    // ---------- Pairing approval (BLE and Wi-Fi Aware) ----------
+
+    /** A nearby device asking to connect. [name] is already cleaned of control and bidi characters. */
+    class ConnectRequest(val name: String, val fp: String)
+
+    private val _connectRequest = MutableStateFlow<ConnectRequest?>(null)
+    /** Non-null while the user is being asked "X wants to connect". */
+    val connectRequest: StateFlow<ConnectRequest?> = _connectRequest.asStateFlow()
+    private val connectLock = kotlinx.coroutines.sync.Mutex()
+    private var connectGate: CompletableDeferred<Pair<Boolean, Boolean>>? = null
+
+    /**
+     * Decides about one connection request. A device is approved without asking only when the user
+     * enabled automatic acceptance and both its name AND its certificate fingerprint match a trusted
+     * entry. The caller applies the 30 s limit; cancelling this call clears the prompt.
+     */
+    private suspend fun decideConnect(app: Context, name: String, fp: String): Decision {
+        val settings = Settings.get(app)
+        if (settings.state.value.autoAcceptTrusted && settings.isTrusted(name, fp)) return Decision.APPROVED
+        return connectLock.withLock {
+            val gate = CompletableDeferred<Pair<Boolean, Boolean>>()
+            connectGate = gate
+            _connectRequest.value = ConnectRequest(name, fp)
+            try {
+                val (yes, trust) = gate.await()
+                if (yes && trust) settings.trust(name, fp)
+                if (yes) Decision.APPROVED else Decision.DECLINED
+            } finally {
+                _connectRequest.value = null
+                connectGate = null
+            }
+        }
+    }
+
+    fun answerConnect(yes: Boolean, trust: Boolean = false) {
+        connectGate?.complete(yes to trust)
+    }
+
     private var acceptGate: CompletableDeferred<Boolean>? = null
     private var pendingSender: String? = null
     /** Certificate fingerprint of the sender behind [pendingSender]; null on unauthenticated links (cable). */
@@ -200,10 +251,10 @@ object TransferController {
                 )
                 receiveQr = qr; receiveBand = group.band
                 _state.value = TransferState.Listening(qr, group.band)
-                advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) } }
+                advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) { n, f -> decideConnect(app, n, f) } } }
                 // Opportunistic Wi-Fi Aware publish; silently absent when the hardware or the P2P group forbids it.
                 awareHost = AwareHost(app).also { ah ->
-                    val ok = runCatching { ah.start(qr) }.getOrDefault(false)
+                    val ok = runCatching { ah.start(qr) { n, f -> decideConnect(app, n, f) } }.getOrDefault(false)
                     android.util.Log.i(TAG, "wifi aware publish: ${if (ok) "on" else "unavailable"}")
                 }
 
@@ -439,7 +490,7 @@ object TransferController {
                     )
                 }
                 publish()
-                advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) } }
+                advertiser = BleAdvertiser(app).also { runCatching { it.start(qr) { n, f -> decideConnect(app, n, f) } } }
 
                 val server = BroadcastHost(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app), items = items, bindAddress = group.ownerIp,
@@ -693,6 +744,7 @@ object TransferController {
         client?.close()
         client = null
         receiveQr = null
+        connectGate?.complete(false to false)
         runCatching { awareHost?.stop() }
         awareHost = null
         runCatching { advertiser?.stop() }

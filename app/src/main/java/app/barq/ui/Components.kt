@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -206,6 +207,38 @@ fun IncomingDialog(manifest: TransferManifest, onDecide: (accept: Boolean, trust
         confirmButton = { TextButton(onClick = { onDecide(true, trust) }) { Text(stringResource(R.string.accept)) } },
         dismissButton = { TextButton(onClick = { onDecide(false, false) }) { Text(stringResource(R.string.decline)) } },
     )
+}
+
+/**
+ * "X wants to connect": the first of the two pairing steps over BLE or Wi-Fi Aware. Nothing about the
+ * network is released until the user taps Accept; the device name was cleaned of control and bidi characters.
+ */
+@Composable
+fun ConnectRequestDialog(name: String, onDecide: (accept: Boolean, trust: Boolean) -> Unit) {
+    var trust by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false),
+        title = { Text(stringResource(R.string.connect_request_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.connect_request_body, name))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Checkbox(checked = trust, onCheckedChange = { trust = it })
+                    Text(stringResource(R.string.incoming_trust), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onDecide(true, trust) }) { Text(stringResource(R.string.accept)) } },
+        dismissButton = { TextButton(onClick = { onDecide(false, false) }) { Text(stringResource(R.string.decline)) } },
+    )
+}
+
+/** Shows [ConnectRequestDialog] whenever the controller has a pending request; place it once on any screen that listens. */
+@Composable
+fun ConnectRequestHost() {
+    val request by app.barq.TransferController.connectRequest.collectAsStateWithLifecycle()
+    request?.let { r -> ConnectRequestDialog(r.name) { yes, trust -> app.barq.TransferController.answerConnect(yes, trust) } }
 }
 
 @Composable

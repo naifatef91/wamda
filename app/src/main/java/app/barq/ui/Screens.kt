@@ -93,6 +93,7 @@ fun ReceiveScreen(onHome: () -> Unit, onMinimize: () -> Unit = onHome) {
         }
     }
     BackHandler { if (state is TransferState.Running) onMinimize() else onHome() }
+    ConnectRequestHost()
 
     // Broadcast mode: scan the SENDER's code and join its network instead of hosting our own.
     var notHost by remember { mutableStateOf(false) }
@@ -237,6 +238,7 @@ fun SendScreen(onHome: () -> Unit, onMinimize: () -> Unit = onHome) {
                     when (s.step) {
                         TransferState.Step.WIFI -> stringResource(R.string.send_connecting_wifi)
                         TransferState.Step.PREPARE -> stringResource(R.string.send_preparing)
+                        TransferState.Step.WAITING_APPROVAL -> stringResource(R.string.discover_waiting)
                         TransferState.Step.RECONNECT -> stringResource(R.string.send_reconnecting, s.attempt, s.maxAttempts)
                         else -> stringResource(R.string.send_handshake)
                     },
