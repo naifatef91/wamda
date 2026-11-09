@@ -28,6 +28,8 @@ data class BarqSettings(
     val experimental: Boolean,
     /** Benchmark only: receive without TLS so the cost of encryption can be measured. */
     val benchmarkPlain: Boolean,
+    /** The welcome pages have been shown (or skipped) once. */
+    val onboarded: Boolean = false,
 )
 
 /** User preferences, SharedPreferences-backed, exposed as one StateFlow. */
@@ -57,6 +59,7 @@ class Settings private constructor(context: Context) {
             .putInt(K_DISK_WRITERS, next.diskWriters)
             .putBoolean(K_EXPERIMENTAL, next.experimental)
             .putBoolean(K_PLAIN, next.benchmarkPlain)
+            .putBoolean(K_ONBOARDED, next.onboarded)
             .apply()
         _state.value = next
     }
@@ -96,6 +99,7 @@ class Settings private constructor(context: Context) {
         diskWriters = prefs.getInt(K_DISK_WRITERS, 4).coerceIn(1, 8),
         experimental = prefs.getBoolean(K_EXPERIMENTAL, false),
         benchmarkPlain = prefs.getBoolean(K_PLAIN, false),
+        onboarded = prefs.getBoolean(K_ONBOARDED, false),
     )
 
     /** Ten digits from a CSPRNG: still easy to read off the screen and type on a laptop. */
@@ -117,6 +121,7 @@ class Settings private constructor(context: Context) {
         private const val K_DISK_WRITERS = "disk_writers"
         private const val K_EXPERIMENTAL = "experimental"
         private const val K_PLAIN = "benchmark_plain"
+        private const val K_ONBOARDED = "onboarded"
 
         @Volatile private var instance: Settings? = null
         fun get(context: Context): Settings =

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ob_skip">تخطّي</string>
+    <string name="ob_next">التالي</string>
+    <string name="ob_start">ابدأ</string>
+    <string name="ob1_title">أرسل أي ملف في ومضة</string>
+    <string name="ob1_body">انقل الصور والفيديوهات والملفات الكبيرة بين الهواتف مباشرةً عبر Wi-Fi، دون إنترنت ودون استهلاك باقتك.</string>
+    <string name="ob2_title">اتصال آمن ومشفّر</string>
+    <string name="ob2_body">كل عملية نقل مشفّرة، ولا تُقبل الملفات إلا بموافقتك. يمكنك الوثوق بجهاز تعرفه ليُقبل تلقائياً.</string>
+    <string name="ob3_title">وضع الكمبيوتر</string>
+    <string name="ob3_body">انقل الملفات من متصفح الكمبيوتر وإليه دون تثبيت أي برنامج، عبر Wi-Fi أو كابل USB.</string>
+    <string name="ob4_title">صلاحيات بسيطة</string>
+    <string name="ob4_body">سنطلب الآن صلاحية الأجهزة القريبة والإشعارات فقط، لإيجاد الهواتف حولك وعرض تقدّم النقل. لا نجمع أي بيانات عنك.</string>
+</resources>

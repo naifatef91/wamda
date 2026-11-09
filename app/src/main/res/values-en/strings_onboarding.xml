@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ob_skip">Skip</string>
+    <string name="ob_next">Next</string>
+    <string name="ob_start">Get started</string>
+    <string name="ob1_title">Send any file, in a flash</string>
+    <string name="ob1_body">Move photos, videos and big files between phones directly over Wi-Fi, with no internet and no data used.</string>
+    <string name="ob2_title">Secure and encrypted</string>
+    <string name="ob2_body">Every transfer is encrypted and files are only accepted with your approval. Trust a device you know to accept from it automatically.</string>
+    <string name="ob3_title">PC mode</string>
+    <string name="ob3_body">Move files to and from a computer\'s browser with nothing to install, over Wi-Fi or a USB cable.</string>
+    <string name="ob4_title">Just a few permissions</string>
+    <string name="ob4_body">Next we ask only for nearby devices and notifications, to find phones around you and show progress. We collect no data about you.</string>
+</resources>

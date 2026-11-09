@@ -64,7 +64,11 @@ class MainActivity : ComponentActivity() {
             }
             BarqTheme(darkTheme = dark) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PermissionGate { BarqNav() }
+                    if (!prefs.onboarded) {
+                        OnboardingScreen(onDone = { Settings.get(this@MainActivity).update { it.copy(onboarded = true) } })
+                    } else {
+                        PermissionGate { BarqNav() }
+                    }
                 }
             }
         }
