@@ -167,6 +167,9 @@
     <string name="pick_empty">لا عناصر هنا</string>
     <string name="pick_docs_hint">المستندات والملفات الأخرى تُختار من مستعرض النظام</string>
     <string name="pick_browse">استعراض الملفات</string>
+    <string name="pick_media_hint">اختر ما تريد إرساله من منتقي النظام. لا يرى التطبيق إلا ما تختاره</string>
+    <string name="pick_choose">اختيار</string>
+    <string name="pick_add">إضافة</string>
     <string name="pick_need_permission">يحتاج التطبيق إذن الوصول إلى الصور والفيديو والصوت لعرضها هنا</string>
     <string name="pick_loading">جارٍ التحميل…</string>
     <string name="pick_walking">جارٍ قراءة المجلد…</string>

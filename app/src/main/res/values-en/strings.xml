@@ -167,6 +167,9 @@
     <string name="pick_empty">Nothing here</string>
     <string name="pick_docs_hint">Documents and other files are chosen with the system browser</string>
     <string name="pick_browse">Browse files</string>
+    <string name="pick_media_hint">Choose what to send in the system picker. The app only sees what you pick</string>
+    <string name="pick_choose">Choose</string>
+    <string name="pick_add">Add</string>
     <string name="pick_need_permission">Wamda needs access to photos, videos and audio to list them here</string>
     <string name="pick_loading">Loading…</string>
     <string name="pick_walking">Reading folder…</string>

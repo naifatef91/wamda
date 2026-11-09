@@ -110,8 +110,8 @@ object MediaRepository {
             .sortedBy { it.name.lowercase() }
     }
 
-    /** A document chosen through the system picker. */
-    fun fromDocument(ctx: Context, uri: Uri): PickedFile? {
+    /** A document chosen through the system picker ([kind] says which tab it came from, so it gets the right thumbnail). */
+    fun fromDocument(ctx: Context, uri: Uri, kind: FileKind = FileKind.DOC): PickedFile? {
         var name = uri.lastPathSegment ?: "file"
         var size = -1L
         runCatching {
@@ -123,7 +123,7 @@ object MediaRepository {
             }
         }
         if (size < 0) size = runCatching { ctx.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } }.getOrNull() ?: return null
-        return PickedFile(uri, name, size, ctx.contentResolver.getType(uri), FileKind.DOC)
+        return PickedFile(uri, name, size, ctx.contentResolver.getType(uri), kind)
     }
 
     /** Every file under a folder picked with OpenDocumentTree, with paths relative to that folder's parent (root name included). */

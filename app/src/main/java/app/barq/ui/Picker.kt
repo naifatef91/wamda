@@ -79,12 +79,10 @@ private enum class Tab(val label: Int, val kind: FileKind?) {
     DOCS(R.string.tab_docs, null),
 }
 
-fun mediaPermissions(): List<String> =
-    if (Build.VERSION.SDK_INT >= 33) listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-    else listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-
 /**
- * In-app file browser matching the Pick artboard: type tabs, date-grouped grid, multi-select, sticky total bar.
+ * File chooser: type tabs, date-grouped grid, multi-select, sticky total bar. Photos, videos and music come
+ * from the system pickers (the Android Photo Picker and the document picker), so the app needs no media
+ * permission at all and only ever sees the files the user chooses.
  * [doneLabel] overrides the confirm button's text (e.g. "Share files" in PC mode).
  */
 @Composable
@@ -94,9 +92,23 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit, doneLab
     var tab by remember { mutableStateOf(Tab.IMAGES) }
     val selected = remember { mutableStateOf<Map<String, PickedFile>>(emptyMap()) }
     var docs by remember { mutableStateOf<List<PickedFile>>(emptyList()) }
-    var granted by remember { mutableStateOf(mediaPermissions().all { ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED }) }
-    val askMedia = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted = it.values.any { v -> v } }
-    LaunchedEffect(Unit) { if (!granted) askMedia.launch(mediaPermissions().toTypedArray()) }
+    // What the user picked per media tab, through the system pickers.
+    var picked by remember { mutableStateOf<Map<Tab, List<PickedFile>>>(emptyMap()) }
+    fun addPicked(t: Tab, uris: List<android.net.Uri>) {
+        val files = uris.mapNotNull { MediaRepository.fromDocument(ctx, it, t.kind ?: FileKind.DOC) }
+        picked = picked + (t to (picked[t].orEmpty() + files).distinctBy { it.key })
+        selected.value = selected.value + files.associateBy { it.key }
+    }
+    val pickImages = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { addPicked(Tab.IMAGES, it) }
+    val pickVideos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { addPicked(Tab.VIDEOS, it) }
+    val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addPicked(Tab.AUDIO, it) }
+    fun launchPicker(t: Tab) = when (t) {
+        Tab.IMAGES -> pickImages.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        Tab.VIDEOS -> pickVideos.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+        Tab.AUDIO -> pickAudio.launch(arrayOf("audio/*"))
+        else -> {}
+    }
+    val isMediaTab = { t: Tab -> t == Tab.IMAGES || t == Tab.VIDEOS || t == Tab.AUDIO }
 
     // Folders (FR-11): each picked tree is walked once and selected as a unit.
     var folders by remember { mutableStateOf<List<Pair<String, List<PickedFile>>>>(emptyList()) }
@@ -126,18 +138,12 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit, doneLab
     val items: List<PickedFile>? = when (tab) {
         Tab.DOCS -> docs
         Tab.FOLDERS -> folders.flatMap { it.second }
-        else -> cache.value[tab]
+        Tab.IMAGES, Tab.VIDEOS, Tab.AUDIO -> picked[tab].orEmpty()
+        Tab.APPS -> cache.value[tab]
     }
-    LaunchedEffect(tab, granted) {
-        if (tab == Tab.DOCS || tab == Tab.FOLDERS || cache.value.containsKey(tab) || !granted) return@LaunchedEffect
-        val list = when (tab) {
-            Tab.IMAGES -> MediaRepository.images(ctx)
-            Tab.VIDEOS -> MediaRepository.videos(ctx)
-            Tab.AUDIO -> MediaRepository.audio(ctx)
-            Tab.APPS -> MediaRepository.apps(ctx)
-            Tab.DOCS, Tab.FOLDERS -> emptyList()
-        }
-        cache.value = cache.value + (tab to list)
+    LaunchedEffect(tab) {
+        if (tab != Tab.APPS || cache.value.containsKey(tab)) return@LaunchedEffect
+        cache.value = cache.value + (tab to MediaRepository.apps(ctx))
     }
 
     fun toggle(f: PickedFile) {
@@ -153,6 +159,9 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit, doneLab
                     selected.value = if (allOn) selected.value - visible.map { it.key }.toSet() else selected.value + visible.associateBy { it.key }
                 }) { Text(stringResource(if (allOn) R.string.pick_none else R.string.pick_all)) }
             }
+            if (isMediaTab(tab) && visible.isNotEmpty()) {
+                TextButton(onClick = { launchPicker(tab) }) { Text(stringResource(R.string.pick_add)) }
+            }
         }
 
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -164,6 +173,7 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit, doneLab
                         .selectable(selected = on, role = Role.Tab) {
                             tab = t
                             if (t == Tab.DOCS) pickDocs.launch(arrayOf("*/*"))
+                            if (isMediaTab(t) && picked[t].isNullOrEmpty()) launchPicker(t)
                             if (t == Tab.FOLDERS && folders.isEmpty()) pickTree.launch(null)
                         }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -184,14 +194,12 @@ fun PickerScreen(onBack: () -> Unit, onDone: (List<PickedFile>) -> Unit, doneLab
                     },
                     onAdd = { pickTree.launch(null) },
                 )
-                !granted && tab != Tab.DOCS && tab != Tab.APPS -> Empty(stringResource(R.string.pick_need_permission)) {
-                    TextButton(onClick = { askMedia.launch(mediaPermissions().toTypedArray()) }) { Text(stringResource(R.string.perm_grant)) }
-                }
                 items == null -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
                     Spinner(stringResource(R.string.pick_loading))
                 }
-                items.isEmpty() -> Empty(stringResource(if (tab == Tab.DOCS) R.string.pick_docs_hint else R.string.pick_empty)) {
+                items.isEmpty() -> Empty(stringResource(if (tab == Tab.DOCS) R.string.pick_docs_hint else if (isMediaTab(tab)) R.string.pick_media_hint else R.string.pick_empty)) {
                     if (tab == Tab.DOCS) TextButton(onClick = { pickDocs.launch(arrayOf("*/*")) }) { Text(stringResource(R.string.pick_browse)) }
+                    else if (isMediaTab(tab)) TextButton(onClick = { launchPicker(tab) }) { Text(stringResource(R.string.pick_choose)) }
                 }
                 tab == Tab.IMAGES || tab == Tab.VIDEOS -> MediaGrid(items, selected.value, ::toggle)
                 else -> FileList(items, selected.value, ::toggle)
