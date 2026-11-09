@@ -7,11 +7,6 @@
 -keepclassmembers class app.barq.** { *** Companion; }
 -keepclasseswithmembers class app.barq.** { kotlinx.serialization.KSerializer serializer(...); }
 
-# --- BouncyCastle (in-app TLS identity) ---
--keep class org.bouncycastle.jcajce.provider.** { *; }
--keep class org.bouncycastle.jce.provider.** { *; }
--dontwarn org.bouncycastle.**
--dontwarn javax.naming.**
 
 # --- ZXing embedded scanner reflects on its capture activity ---
 -keep class com.journeyapps.barcodescanner.** { *; }

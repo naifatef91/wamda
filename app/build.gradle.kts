@@ -62,8 +62,6 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-        resources.excludes += "META-INF/versions/**"
     }
 }
 
@@ -81,6 +79,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.zxing.core)
     implementation(libs.zxing.embedded)
-    implementation(libs.bouncycastle.pkix)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

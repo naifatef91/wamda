@@ -1,6 +1,7 @@
 package app.barq.engine
 
 import app.barq.crypto.Tls
+import app.barq.net.IdleGuard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -62,6 +63,8 @@ class Receiver(
                     if (concurrent.get() >= MAX_CONNECTIONS) { runCatching { socket.close() }; continue }
                     socket.receiveBufferSize = Protocol.SOCKET_BUFFER
                     socket.soTimeout = 120_000
+                    // The TLS handshake and HELLO must finish within the deadline; see [IdleGuard].
+                    val firstFrame = IdleGuard.arm(socket)
                     launch {
                         // Handshake explicitly so a TLS failure is logged with its real cause.
                         try {
@@ -71,7 +74,7 @@ class Receiver(
                             runCatching { socket.close() }
                             return@launch
                         }
-                        admit(SocketLink(socket))
+                        admit(SocketLink(socket), firstFrame)
                     }
                 }
                 @Suppress("UNREACHABLE_CODE")
@@ -86,13 +89,15 @@ class Receiver(
      * Serves one incoming link of any kind: a TLS socket accepted by [run], or a USB
      * stream handed over by the cable session (multipath data streams included).
      */
-    suspend fun admit(link: Link) {
+    suspend fun admit(link: Link, firstFrame: IdleGuard.Watch? = null) {
         var isControl = false
         concurrent.incrementAndGet()
         try {
             link.use {
                 val inp = DataInputStream(BufferedInputStream(link.input, Protocol.STREAM_BUFFER))
-                val hello = wireJson.decodeFromString(Hello.serializer(), FrameIO.readJson(inp, Protocol.Type.HELLO))
+                val hello = try {
+                    wireJson.decodeFromString(Hello.serializer(), FrameIO.readJson(inp, Protocol.Type.HELLO))
+                } finally { firstFrame?.disarm() }
                 if (hello.magic != Protocol.MAGIC || !java.security.MessageDigest.isEqual(hello.token.toByteArray(), token.toByteArray())) {
                     // Online guessing of the pairing code: slow down, then give up on this listener
                     // entirely (the controller shows a fresh code).

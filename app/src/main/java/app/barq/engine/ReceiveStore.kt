@@ -158,10 +158,8 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
 
     /** "Download/Wamda" plus the sender's folder path, each segment sanitized (FR-11). */
     private fun relativePathFor(path: String): String {
-        val segments = path.split('/', '\\')
-            .map { it.trim().replace(Regex("[\\\\/:*?\"<>|]"), "_") }
-            .filter { it.isNotEmpty() && it != "." && it != ".." }
-        return if (segments.isEmpty()) "Download/Wamda" else "Download/Wamda/" + segments.joinToString("/")
+        val safe = NameSanitizer.relativePath(path)
+        return if (safe.isEmpty()) "Download/Wamda" else "Download/Wamda/$safe"
     }
 
     /** True when a file with this name, size and quick fingerprint is already in MediaStore. */
@@ -185,9 +183,6 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
         false
     }.getOrDefault(false)
 
-    /** Strip path separators so a hostile manifest cannot escape Download/Wamda. */
-    private fun sanitize(name: String): String {
-        val base = name.substringAfterLast('/').substringAfterLast('\\').trim()
-        return if (base.isEmpty() || base == "." || base == "..") "file" else base
-    }
+    /** Same rules as PC-mode uploads: see [NameSanitizer]. */
+    private fun sanitize(name: String): String = NameSanitizer.fileName(name)
 }

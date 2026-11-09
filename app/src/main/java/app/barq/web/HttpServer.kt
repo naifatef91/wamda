@@ -8,7 +8,9 @@ import android.provider.MediaStore
 import android.util.Log
 import android.webkit.MimeTypeMap
 import app.barq.data.PickedFile
+import app.barq.engine.NameSanitizer
 import app.barq.engine.wireJson
+import app.barq.net.IdleGuard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -146,13 +148,16 @@ class HttpServer(
     private fun serveChecked(socket: Socket) {
         socket.soTimeout = 60_000
         socket.tcpNoDelay = true
+        // A connection that has not delivered its first complete request line and headers within
+        // the deadline is closed, so idle sockets cannot exhaust the connection slots.
+        val firstRequest = IdleGuard.arm(socket)
         socket.inetAddress?.hostAddress?.let { addr -> _stats.update { it.copy(lastClientAddress = addr, lastSeenMs = System.currentTimeMillis()) } }
         try {
             val input = BufferedInputStream(socket.getInputStream(), 64 * 1024)
             val output = BufferedOutputStream(socket.getOutputStream(), 64 * 1024)
             var keepAlive = true
             while (keepAlive) {
-                val req = readRequest(input) ?: break
+                val req = try { readRequest(input) } finally { firstRequest.disarm() } ?: break
                 keepAlive = !req.headers["connection"].equals("close", ignoreCase = true)
                 val resp = try {
                     route(req)
@@ -657,18 +662,10 @@ class HttpServer(
         }
 
         /** Display-safe name: no path pieces, no control characters, bounded length. */
-        fun displayName(name: String): String {
-            val base = name.substringAfterLast('/').substringAfterLast('\\')
-                .filter { it.code >= 0x20 && it != '\u007f' }.trim()
-            return (if (base.isEmpty()) "file" else base).take(200)
-        }
+        fun displayName(name: String): String = NameSanitizer.fileName(name)
 
-        /** Name safe to hand to MediaStore: never a path, never empty, never reserved. */
-        fun sanitizeName(name: String): String {
-            var base = displayName(name).replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
-            if (base.isEmpty() || base == "." || base == "..") base = "file"
-            return base.take(120)
-        }
+        /** Name safe to hand to MediaStore: the same rules the phone-to-phone receiver applies. */
+        fun sanitizeName(name: String): String = NameSanitizer.fileName(name)
 
         private fun asciiName(name: String): String =
             displayName(name).map { if (it.code in 0x20..0x7e && it != '"' && it != '\\') it else '_' }.joinToString("")

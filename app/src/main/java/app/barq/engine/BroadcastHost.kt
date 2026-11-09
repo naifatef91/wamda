@@ -1,6 +1,7 @@
 package app.barq.engine
 
 import app.barq.crypto.Tls
+import app.barq.net.IdleGuard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -64,6 +65,8 @@ class BroadcastHost(
     }
 
     private suspend fun admit(socket: Socket) {
+        // The TLS handshake and HELLO must finish within the deadline; see [IdleGuard].
+        val firstFrame = IdleGuard.arm(socket)
         val hello = try {
             (socket as? javax.net.ssl.SSLSocket)?.startHandshake()
             val inp = DataInputStream(BufferedInputStream(socket.getInputStream(), 64 * 1024))
@@ -74,6 +77,8 @@ class BroadcastHost(
             android.util.Log.w("Wamda", "broadcast: rejected connection from ${socket.inetAddress}", e)
             runCatching { socket.close() }
             return
+        } finally {
+            firstFrame.disarm()
         }
         if (hello.magic != Protocol.MAGIC || !java.security.MessageDigest.isEqual(hello.token.toByteArray(), token.toByteArray()) ||
             hello.session.isBlank() || hello.session.length > 64

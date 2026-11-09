@@ -1,20 +1,12 @@
 package app.barq.crypto
 
 import android.util.Base64
-import org.bouncycastle.asn1.x500.X500Name
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
-import java.math.BigInteger
 import java.net.Socket
-import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Principal
 import java.security.PrivateKey
-import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
-import java.security.spec.ECGenParameterSpec
 import java.util.Date
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLEngine
@@ -44,16 +36,8 @@ object Tls {
     @Synchronized
     fun identity(): Identity {
         cached?.let { if (it.certificate.notAfter.after(Date())) return it }
-        val kp = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1"), SecureRandom()) }.generateKeyPair()
-        val now = System.currentTimeMillis()
-        val name = X500Name("CN=Wamda")
-        val holder = JcaX509v3CertificateBuilder(
-            name, BigInteger(63, SecureRandom()),
-            Date(now - 24L * 3600 * 1000), Date(now + 365L * 24 * 3600 * 1000),
-            name, kp.public,
-        ).build(JcaContentSignerBuilder("SHA256withECDSA").build(kp.private))
-        val cert = JcaX509CertificateConverter().getCertificate(holder)
-        return Identity(kp.private, cert).also { cached = it }
+        val made = SelfSignedCert.generate()
+        return Identity(made.keyPair.private, made.certificate).also { cached = it }
     }
 
     /** Key manager that offers this process's certificate in both the server and the client role. */
