@@ -31,7 +31,7 @@ class Receiver(
     private val port: Int,
     private val token: String,
     private val deviceName: String,
-    private val store: ReceiveStore,
+    private val store: ChunkSink,
     /** Asked once per session; [peerId] is the sender's certificate fingerprint on authenticated links, else null. */
     private val onIncoming: suspend (manifest: TransferManifest, peerId: String?) -> Boolean,
     private val onPlanned: (TransferStats, peerName: String) -> Unit,

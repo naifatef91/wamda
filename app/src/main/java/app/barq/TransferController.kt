@@ -10,6 +10,7 @@ import app.barq.engine.BroadcastHost
 import app.barq.engine.DialTransport
 import app.barq.engine.FileEntry
 import app.barq.engine.Link
+import app.barq.engine.mapParallel
 import app.barq.engine.SenderTransport
 import app.barq.net.usb.UsbSession
 import app.barq.engine.Protocol
@@ -127,7 +128,7 @@ object TransferController {
             var lastStats: TransferStats? = null
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
-                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+                val items = files.mapParallel { i, f -> toSendItem(app, f, i + 1) }
                 _state.value = TransferState.Preparing(TransferState.Step.WIFI)
                 requireEncryptionAgreement(app, peer.advert.e)
                 // Ask the receiver; its user (or its trusted list) decides. The token only arrives sealed after that.
@@ -380,7 +381,7 @@ object TransferController {
             var ok = false
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
-                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+                val items = files.mapParallel { i, f -> toSendItem(app, f, i + 1) }
                 var attempt = 0
                 while (true) {
                     attempt++
@@ -477,7 +478,7 @@ object TransferController {
                     name = deviceName(app), freq = group.frequencyMhz, fp = Tls.identity().fingerprint, host = true,
                 )
                 _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
-                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+                val items = files.mapParallel { i, f -> toSendItem(app, f, i + 1) }
 
                 val peers = java.util.concurrent.ConcurrentHashMap<String, PeerEntry>()
                 var order = 0
@@ -634,7 +635,7 @@ object TransferController {
             var lastStats: TransferStats? = null
             try {
                 _state.value = TransferState.Preparing(TransferState.Step.PREPARE)
-                val items = files.mapIndexed { i, f -> toSendItem(app, f, i + 1) }
+                val items = files.mapParallel { i, f -> toSendItem(app, f, i + 1) }
                 val token = newToken()
                 UsbSession.announceSend(token, deviceName(app))
                 delay(300) // let the remote install its receiver before the first stream opens
@@ -786,7 +787,7 @@ object TransferController {
                 ReadableFile(FileInputStream(pfd.fileDescriptor).channel) { pfd.close() }
             }
         }
-        // Quick fingerprint (≤ 512 KiB read) so the receiver can skip files it already has.
+        // Quick fingerprint (at most 192 KiB read) so the receiver can skip files it already has.
         val fp = runCatching { open().use { app.barq.engine.QuickHash.of(it.channel, f.size) } }.getOrNull()
         val entry = FileEntry(id, f.name, f.size, f.mime, f.modifiedSec * 1000, path = f.relPath, fp = fp)
         return SendItem(entry, open)

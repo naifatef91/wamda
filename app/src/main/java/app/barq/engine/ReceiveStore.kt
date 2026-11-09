@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  * from any thread. A small state file per unfinished file records which chunks
  * arrived, so a later session with the same (name, size, modified) resumes.
  */
-class ReceiveStore(private val context: Context, private val resume: Boolean = true) {
+class ReceiveStore(private val context: Context, private val resume: Boolean = true) : ChunkSink {
     private val resolver = context.contentResolver
     private val stateDir = File(context.filesDir, "resume").apply { mkdirs() }
 
@@ -45,7 +45,7 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
     private val open = ConcurrentHashMap<Int, OpenFile>()
 
     /** Opens or resumes every file in the manifest. Returns fileId -> missing chunk indexes (complete files omitted). */
-    fun prepare(manifest: TransferManifest): Map<Int, List<Int>> {
+    override fun prepare(manifest: TransferManifest): Map<Int, List<Int>> {
         val missing = LinkedHashMap<Int, List<Int>>()
         for (entry in manifest.files) {
             // FR-10: a file with the same name, size and content fingerprint already on this phone is not transferred again.
@@ -61,12 +61,25 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
         return missing
     }
 
-    fun write(fileId: Int, offset: Long, buf: ByteArray, len: Int) {
+    /**
+     * With 6 to 8 parallel connections, every stream finishing a 4 MiB chunk at the same moment turns
+     * the flash into a random-write storm, which cheap eMMC handles badly. Only [DISK_WRITERS] chunks
+     * are written at once; the others wait with their (bounded, one per stream) buffer, which in turn
+     * slows that stream through TCP back-pressure instead of growing memory.
+     */
+    private val diskGate = java.util.concurrent.Semaphore(DISK_WRITERS)
+
+    override fun write(fileId: Int, offset: Long, buf: ByteArray, len: Int) {
         val f = open[fileId] ?: throw ProtocolException("data for unknown file $fileId")
         if (offset < 0 || len < 0 || offset % Protocol.CHUNK_SIZE != 0L || offset > f.entry.size - len) throw ProtocolException("write outside file bounds")
         val bb = ByteBuffer.wrap(buf, 0, len)
         var pos = offset
-        while (bb.hasRemaining()) pos += f.channel.write(bb, pos)
+        diskGate.acquire()
+        try {
+            while (bb.hasRemaining()) pos += f.channel.write(bb, pos)
+        } finally {
+            diskGate.release()
+        }
         val idx = (offset / Protocol.CHUNK_SIZE).toInt()
         synchronized(f) {
             f.done.set(idx)
@@ -74,7 +87,7 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
         }
     }
 
-    fun bytesAlready(fileId: Int): Long {
+    override fun bytesAlready(fileId: Int): Long {
         val f = open[fileId] ?: return 0
         var total = 0L
         for (i in 0 until f.chunkCount) if (f.done.get(i)) {
@@ -83,10 +96,10 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
         return total
     }
 
-    fun incompleteIds(): List<Int> = open.values.filter { !it.isComplete() }.map { it.entry.id }.sorted()
+    override fun incompleteIds(): List<Int> = open.values.filter { !it.isComplete() }.map { it.entry.id }.sorted()
 
     /** Publishes complete files, keeps state for incomplete ones, closes everything. */
-    fun finish() {
+    override fun finish() {
         for (f in open.values) {
             synchronized(f) {
                 // No fsync here: on a multi-GB file it stalls the "done" screen for seconds.
@@ -185,4 +198,9 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
 
     /** Same rules as PC-mode uploads: see [NameSanitizer]. */
     private fun sanitize(name: String): String = NameSanitizer.fileName(name)
+
+    private companion object {
+        /** Chunks written to flash at the same time, however many connections are open. */
+        const val DISK_WRITERS = 4
+    }
 }
