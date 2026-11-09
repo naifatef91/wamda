@@ -45,6 +45,24 @@ object Protocol {
         if (size == 0L) 1 else ((size + CHUNK_SIZE - 1) / CHUNK_SIZE).toInt()
 }
 
+/**
+ * Chunk arithmetic in one place. Every offset is a Long (8 bytes on the wire) and every multiplication
+ * widens before it multiplies, so files above 4 GiB never wrap a 32-bit Int.
+ */
+object ChunkMath {
+    fun offsetOf(index: Int): Long = index.toLong() * Protocol.CHUNK_SIZE
+
+    /** Bytes in chunk [index] of a file of [size]; 0 past the end. */
+    fun lengthOf(size: Long, index: Int): Int =
+        minOf(Protocol.CHUNK_SIZE, size - offsetOf(index)).coerceAtLeast(0).toInt()
+
+    fun indexOf(offset: Long): Int = (offset / Protocol.CHUNK_SIZE).toInt()
+
+    /** A DATA frame may only land on a chunk boundary and may not run past the end of the file. */
+    fun writeAllowed(size: Long, offset: Long, len: Int): Boolean =
+        offset >= 0 && len >= 0 && offset % Protocol.CHUNK_SIZE == 0L && offset <= size - len
+}
+
 data class FrameHeader(val type: Int, val flags: Int, val fileId: Int, val offset: Long, val length: Int)
 
 object FrameIO {

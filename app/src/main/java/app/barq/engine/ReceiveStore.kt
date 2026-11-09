@@ -78,7 +78,7 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
 
     override fun write(fileId: Int, offset: Long, buf: ByteArray, len: Int) {
         val f = open[fileId] ?: throw ProtocolException("data for unknown file $fileId")
-        if (offset < 0 || len < 0 || offset % Protocol.CHUNK_SIZE != 0L || offset > f.entry.size - len) throw ProtocolException("write outside file bounds")
+        if (!ChunkMath.writeAllowed(f.entry.size, offset, len)) throw ProtocolException("write outside file bounds")
         val bb = ByteBuffer.wrap(buf, 0, len)
         var pos = offset
         diskGate.acquire()

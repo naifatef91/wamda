@@ -1,6 +1,5 @@
 package app.barq.crypto
 
-import android.util.Base64
 import java.net.Socket
 import java.security.MessageDigest
 import java.security.Principal
@@ -40,6 +39,9 @@ object Tls {
         return Identity(made.keyPair.private, made.certificate).also { cached = it }
     }
 
+    /** A fresh identity that is not the process-wide one: used when a second endpoint must exist in the same process (tests). */
+    fun newIdentity(): Identity = SelfSignedCert.generate().let { Identity(it.keyPair.private, it.certificate) }
+
     /** Key manager that offers this process's certificate in both the server and the client role. */
     private fun keyManager(id: Identity) = object : X509ExtendedKeyManager() {
         override fun getClientAliases(keyType: String?, issuers: Array<Principal>?) = arrayOf(ALIAS)
@@ -58,8 +60,7 @@ object Tls {
      * its fingerprint, which is what "trusted device" auto-accept is bound to; a peer without one
      * always gets the accept dialog.
      */
-    fun serverSocket(): SSLServerSocket {
-        val id = identity()
+    fun serverSocket(id: Identity = identity()): SSLServerSocket {
         val anyClient = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {
                 if (chain.isEmpty()) throw CertificateException("empty chain")
@@ -71,8 +72,10 @@ object Tls {
         val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf(keyManager(id)), arrayOf(anyClient), null) }
         val server = ctx.serverSocketFactory.createServerSocket() as SSLServerSocket
         server.enabledProtocols = PROTOCOLS
+        // Do NOT also set needClientAuth = false afterwards: per the SSLServerSocket contract each of the two
+        // setters overrides the other, so that line silently turned "want" off and no client certificate was
+        // ever requested (found by MutualCertHandshakeTest: the receiver always saw peerId == null).
         server.wantClientAuth = true
-        server.needClientAuth = false
         server.useClientMode = false
         return server
     }
@@ -84,7 +87,7 @@ object Tls {
     }
 
     /** Layers TLS over an already-connected socket and pins the receiver's certificate fingerprint. */
-    fun wrapClient(plain: Socket, host: String, port: Int, expectedFingerprint: String): SSLSocket {
+    fun wrapClient(plain: Socket, host: String, port: Int, expectedFingerprint: String, id: Identity = identity()): SSLSocket {
         val trust = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) =
                 throw CertificateException("client auth not used")
@@ -99,7 +102,7 @@ object Tls {
 
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
         }
-        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf(keyManager(identity())), arrayOf(trust), null) }
+        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf(keyManager(id)), arrayOf(trust), null) }
         val ssl = ctx.socketFactory.createSocket(plain, host, port, true) as SSLSocket
         ssl.enabledProtocols = PROTOCOLS
         ssl.useClientMode = true
@@ -109,7 +112,8 @@ object Tls {
 
     fun fingerprintOf(cert: X509Certificate): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(cert.encoded)
-        return Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        // java.util.Base64 (API 26+) gives the same text as android.util.Base64 URL_SAFE|NO_WRAP|NO_PADDING.
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
     }
 
     private const val ALIAS = "wamda"

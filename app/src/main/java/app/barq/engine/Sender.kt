@@ -18,7 +18,6 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import kotlin.math.min
 
 /** A readable file the sender can open on demand; opening may happen on several threads. */
 class SendItem(val entry: FileEntry, val open: () -> ReadableFile)
@@ -56,6 +55,8 @@ class DialTransport(
     private val encrypted: Boolean = true,
     /** Resolved address to dial (Wi-Fi Aware gives a scoped IPv6 one); [host] is then only the TLS peer name. */
     private val address: java.net.InetAddress? = null,
+    /** The client certificate to present; the process-wide one unless a test runs two endpoints in one process. */
+    private val identity: Tls.Identity = Tls.identity(),
 ) : SenderTransport {
     override val writesHello = true
     override suspend fun control(): Link = SocketLink(connect())
@@ -70,7 +71,7 @@ class DialTransport(
         socket.soTimeout = 60_000
         if (!encrypted) return socket
         if (fingerprint.isBlank()) throw ProtocolException("QR code has no certificate fingerprint; refusing unencrypted transfer")
-        return Tls.wrapClient(socket, host, port, fingerprint)
+        return Tls.wrapClient(socket, host, port, fingerprint, identity)
     }
 }
 
@@ -177,7 +178,7 @@ class Sender(
                 for (job in queue) {
                     val item = byId.getValue(job.fileId)
                     val size = item.entry.size
-                    val offset = job.index * Protocol.CHUNK_SIZE
+                    val offset = ChunkMath.offsetOf(job.index)
                     val len = chunkLength(size, job.index)
                     val file = open.getOrPut(job.fileId) { item.open() }
                     val t0 = System.nanoTime()
@@ -204,10 +205,7 @@ class Sender(
         }
     }
 
-    private fun chunkLength(size: Long, index: Int): Int {
-        val offset = index * Protocol.CHUNK_SIZE
-        return min(Protocol.CHUNK_SIZE, size - offset).coerceAtLeast(0).toInt()
-    }
+    private fun chunkLength(size: Long, index: Int): Int = ChunkMath.lengthOf(size, index)
 
     private fun readFully(ch: FileChannel, buf: ByteArray, offset: Long, len: Int) {
         val bb = ByteBuffer.wrap(buf, 0, len)

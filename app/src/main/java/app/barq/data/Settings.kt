@@ -79,7 +79,7 @@ class Settings private constructor(context: Context) {
     fun isTrusted(name: String, fingerprint: String?): Boolean {
         if (fingerprint == null || name !in _state.value.trustedDevices) return false
         val saved = prefs.getString(K_TRUST_FP + name, null) ?: return false
-        return java.security.MessageDigest.isEqual(saved.toByteArray(), fingerprint.toByteArray())
+        return TrustPolicy.sameFingerprint(saved, fingerprint)
     }
 
     private fun read() = BarqSettings(

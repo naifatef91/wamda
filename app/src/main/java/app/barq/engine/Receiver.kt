@@ -43,6 +43,8 @@ class Receiver(
     private val encrypted: Boolean = true,
     /** Local address to listen on (the P2P group owner IP); null binds every interface. */
     private val bindAddress: String? = null,
+    /** The TLS identity to present; the process-wide one unless a test runs two endpoints in one process. */
+    private val identity: Tls.Identity = Tls.identity(),
 ) {
     @Volatile private var stats: TransferStats? = null
     private val sessionActive = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -52,7 +54,7 @@ class Receiver(
 
     /** Runs until the calling coroutine is cancelled. */
     suspend fun run(): Nothing = withContext(Dispatchers.IO) {
-        val server: ServerSocket = if (encrypted) Tls.serverSocket() else ServerSocket()
+        val server: ServerSocket = if (encrypted) Tls.serverSocket(identity) else ServerSocket()
         server.receiveBufferSize = Protocol.SOCKET_BUFFER
         server.reuseAddress = true
         server.bind(if (bindAddress != null) InetSocketAddress(java.net.InetAddress.getByName(bindAddress), port) else InetSocketAddress(port))

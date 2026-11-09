@@ -142,7 +142,7 @@ class HttpServer(
         val local = socket.localAddress ?: return false
         if (local.isLoopbackAddress) return true
         val name = runCatching { java.net.NetworkInterface.getByInetAddress(local)?.name }.getOrNull() ?: return false
-        return ALLOWED_IFACES.any { name.startsWith(it) }
+        return interfaceAllowed(name)
     }
 
     private fun serveChecked(socket: Socket) {
@@ -635,7 +635,9 @@ class HttpServer(
         private const val MAX_CONNECTIONS = 32
         /** Interface name prefixes PC mode may be reached on: Wi-Fi Direct group, USB tethering. */
         private val ALLOWED_IFACES = listOf("p2p") + UsbTether.PREFIXES
-        private val ASSET_NAME = Regex("[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}")
+        /** True for the network interfaces PC mode answers on (the Wi-Fi Direct group and USB tethering) and nothing else. */
+        internal fun interfaceAllowed(name: String): Boolean = ALLOWED_IFACES.any { name.startsWith(it) }
+        private val ASSET_NAME =Regex("[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}")
         private val IP_LITERAL = Regex("""^\d{1,3}(\.\d{1,3}){3}$|^\[[0-9A-Fa-f:.%]+]$""")
 
         /** Host part of a Host/Origin value without the port, brackets kept for IPv6; null when absent. */
