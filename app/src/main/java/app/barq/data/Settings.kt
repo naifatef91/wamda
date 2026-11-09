@@ -22,6 +22,8 @@ data class BarqSettings(
     val pc5GHz: Boolean,
     /** Parallel data streams the receiver asks for (4, 6 or 8). */
     val streams: Int,
+    /** Chunks the receiver writes to flash at the same moment (1 to 8). Lower is gentler on slow eMMC, higher suits fast UFS. */
+    val diskWriters: Int,
     /** Benchmark only: receive without TLS so the cost of encryption can be measured. */
     val benchmarkPlain: Boolean,
 )
@@ -50,6 +52,7 @@ class Settings private constructor(context: Context) {
             .putString(K_PC_PASS, next.pcPassword)
             .putBoolean(K_PC_5G, next.pc5GHz)
             .putInt(K_STREAMS, next.streams)
+            .putInt(K_DISK_WRITERS, next.diskWriters)
             .putBoolean(K_PLAIN, next.benchmarkPlain)
             .apply()
         _state.value = next
@@ -87,6 +90,7 @@ class Settings private constructor(context: Context) {
         pcPassword = prefs.getString(K_PC_PASS, null)?.takeIf { it.length in 8..63 } ?: randomDigits().also { prefs.edit().putString(K_PC_PASS, it).apply() },
         pc5GHz = prefs.getBoolean(K_PC_5G, false),
         streams = prefs.getInt(K_STREAMS, 6).coerceIn(1, 8),
+        diskWriters = prefs.getInt(K_DISK_WRITERS, 4).coerceIn(1, 8),
         benchmarkPlain = prefs.getBoolean(K_PLAIN, false),
     )
 
@@ -106,6 +110,7 @@ class Settings private constructor(context: Context) {
         private const val K_PC_PASS = "pc_password"
         private const val K_PC_5G = "pc_5ghz"
         private const val K_STREAMS = "streams"
+        private const val K_DISK_WRITERS = "disk_writers"
         private const val K_PLAIN = "benchmark_plain"
 
         @Volatile private var instance: Settings? = null

@@ -154,6 +154,8 @@
     <string name="profile_receive">تشخيص: الشبكة وفك التشفير %1$s ث · كتابة القرص %2$s ث · %3$d اتصالات</string>
     <string name="settings_streams">عدد الاتصالات المتوازية</string>
     <string name="settings_streams_hint">يطلبها هذا الهاتف عند الاستلام. 6 مناسب لأغلب الأجهزة</string>
+    <string name="settings_disk_writers">كتابات القرص المتزامنة</string>
+    <string name="settings_disk_writers_hint">عدد الأجزاء التي تُكتب إلى التخزين معًا عند الاستلام. 4 مناسب لأغلب الأجهزة؛ قلّله إن بدا الاستلام متقطعًا على جهاز بطيء، وزده على الأجهزة السريعة</string>
     <string name="settings_benchmark">وضع القياس بلا تشفير</string>
     <string name="settings_benchmark_hint">للمقارنة فقط: يستقبل هذا الهاتف دون TLS. أطفئه بعد القياس.</string>
     <string name="pick_all">تحديد الكل</string>

@@ -267,7 +267,7 @@ object TransferController {
 
                 val receiver = Receiver(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app),
-                    store = ReceiveStore(app, resume = settings.state.value.skipExisting),
+                    store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters),
                     onIncoming = { manifest, peerId ->
                         val s = settings.state.value
                         // Trust is keyed on the sender's certificate, never on the name it chose.
@@ -559,7 +559,7 @@ object TransferController {
                 requireEncryptionAgreement(app, qr.enc)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = qr.token, deviceName = deviceName(app),
-                    store = ReceiveStore(app, resume = settings.state.value.skipExisting),
+                    store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters),
                     onIncoming = { manifest, peerId ->
                         val s = settings.state.value
                         if (s.autoAcceptTrusted && settings.isTrusted(manifest.senderName, peerId)) return@Receiver true
@@ -681,7 +681,7 @@ object TransferController {
                 _state.value = TransferState.Preparing(TransferState.Step.HANDSHAKE)
                 val receiver = Receiver(
                     port = Protocol.PORT, token = token, deviceName = deviceName(app),
-                    store = ReceiveStore(app, resume = settings.state.value.skipExisting),
+                    store = ReceiveStore(app, resume = settings.state.value.skipExisting, diskWriters = settings.state.value.diskWriters),
                     onIncoming = { manifest, _ ->
                         // The cable carries no certificate, so a trusted name alone never skips the dialog.
                         pendingSender = manifest.senderName; pendingPeerId = null

@@ -154,6 +154,8 @@
     <string name="profile_receive">Profile: network + TLS %1$s s · disk write %2$s s · %3$d streams</string>
     <string name="settings_streams">Parallel streams</string>
     <string name="settings_streams_hint">Requested by this phone when receiving. 6 suits most devices</string>
+    <string name="settings_disk_writers">Simultaneous disk writes</string>
+    <string name="settings_disk_writers_hint">How many chunks are written to storage at once while receiving. 4 suits most devices; lower it if receiving stutters on a slow phone, raise it on fast ones</string>
     <string name="settings_benchmark">Benchmark mode without encryption</string>
     <string name="settings_benchmark_hint">For comparison only: this phone receives without TLS. Turn it off after measuring.</string>
     <string name="pick_all">Select all</string>

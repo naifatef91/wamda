@@ -236,6 +236,9 @@ fun SettingsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                             BarqSwitch(s.prefer5GHz) { v -> settings.update { it.copy(prefer5GHz = v) } }
                         }
                         HorizontalDivider(color = c.outline)
+                        SettingRow(stringResource(R.string.settings_disk_writers), stringResource(R.string.settings_disk_writers_hint)) {
+                            Segmented(options = listOf(2 to "2", 4 to "4", 6 to "6", 8 to "8"), selected = s.diskWriters) { v -> settings.update { it.copy(diskWriters = v) } }
+                        }
                         SettingRow(stringResource(R.string.settings_streams), stringResource(R.string.settings_streams_hint)) {
                             Segmented(options = listOf(4 to "4", 6 to "6", 8 to "8"), selected = s.streams) { v -> settings.update { it.copy(streams = v) } }
                         }

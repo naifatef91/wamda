@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  * from any thread. A small state file per unfinished file records which chunks
  * arrived, so a later session with the same (name, size, modified) resumes.
  */
-class ReceiveStore(private val context: Context, private val resume: Boolean = true) : ChunkSink {
+class ReceiveStore(private val context: Context, private val resume: Boolean = true, diskWriters: Int = DEFAULT_DISK_WRITERS) : ChunkSink {
     private val resolver = context.contentResolver
     private val stateDir = File(context.filesDir, "resume").apply { mkdirs() }
 
@@ -63,11 +63,11 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
 
     /**
      * With 6 to 8 parallel connections, every stream finishing a 4 MiB chunk at the same moment turns
-     * the flash into a random-write storm, which cheap eMMC handles badly. Only [DISK_WRITERS] chunks
+     * the flash into a random-write storm, which cheap eMMC handles badly. Only [diskWriters] chunks
      * are written at once; the others wait with their (bounded, one per stream) buffer, which in turn
      * slows that stream through TCP back-pressure instead of growing memory.
      */
-    private val diskGate = java.util.concurrent.Semaphore(DISK_WRITERS)
+    private val diskGate = java.util.concurrent.Semaphore(diskWriters.coerceIn(1, 16))
 
     override fun write(fileId: Int, offset: Long, buf: ByteArray, len: Int) {
         val f = open[fileId] ?: throw ProtocolException("data for unknown file $fileId")
@@ -199,8 +199,8 @@ class ReceiveStore(private val context: Context, private val resume: Boolean = t
     /** Same rules as PC-mode uploads: see [NameSanitizer]. */
     private fun sanitize(name: String): String = NameSanitizer.fileName(name)
 
-    private companion object {
-        /** Chunks written to flash at the same time, however many connections are open. */
-        const val DISK_WRITERS = 4
+    companion object {
+        /** Default for the "simultaneous disk writes" setting. */
+        const val DEFAULT_DISK_WRITERS = 4
     }
 }
